@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "react-router-dom": "^6.20.1",
+    "antd": "^5.12.8",
+    "@ant-design/icons": "^5.2.6",
+    "axios": "^1.6.2",
+    "zustand": "^4.4.7",
+    "dayjs": "^1.11.10",
+    "react-markdown": "^9.0.1",
+    "prismjs": "^1.29.0",
+    "react-syntax-highlighter": "^15.5.0"
+  },
+  "devDependencies": {
+    "@types/prismjs": "^1.26.3",
+    "@types/react-syntax-highlighter": "^15.5.10"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  }
+}
