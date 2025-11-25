@@ -102,7 +102,12 @@ func setDefaults() {
 	viper.SetDefault("server.mode", "debug")
 
 	// Database defaults
-	viper.SetDefault("database.type", "sqlite")
+	viper.SetDefault("database.type", "postgres")
+	viper.SetDefault("database.host", "localhost")
+	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.user", "postgres")
+	viper.SetDefault("database.password", "ai_knowledge_pw")
+	viper.SetDefault("database.dbname", "ai_knowledge_db")
 	viper.SetDefault("database.path", "./data/app.db")
 
 	// AI defaults
