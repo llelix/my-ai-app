@@ -210,9 +210,9 @@ const AIChat: React.FC = () => {
 
   return (
     <div style={{ height: 'calc(100vh - 180px)' }}>
-      <Row gutter={16} style={{ height: '100%' }}>
+      <Row gutter={[16, 16]} style={{ height: '100%' }}>
         {/* 左侧聊天区域 */}
-        <Col xs={24} lg={16}>
+        <Col xs={24} xl={17} xxl={18}>
           <Card
             title={
               <Space>
@@ -434,11 +434,16 @@ const AIChat: React.FC = () => {
         </Col>
 
         {/* 右侧知识推荐区域 */}
-        <Col xs={0} lg={8}>
+        <Col xs={24} sm={0} md={10} lg={8} xl={7} xxl={6}>
           <Card
             title="知识库推荐"
             size="small"
-            bodyStyle={{ padding: '12px', height: 'calc(100vh - 220px)', overflow: 'hidden' }}
+            style={{ height: '100%' }}
+            bodyStyle={{
+              padding: '12px',
+              height: 'calc(100% - 56px)',
+              overflow: 'hidden'
+            }}
           >
             <div style={{
               height: '100%',

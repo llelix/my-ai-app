@@ -1,8 +1,10 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  text-align: left; /* 改为左对齐，适合应用布局 */
+  overflow: hidden; /* 防止出现不必要的滚动条 */
 }
 
 .logo {
