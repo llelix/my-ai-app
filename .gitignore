@@ -2,4 +2,4 @@
 *.qoder
 */logs/*
 *app.log
-backend/cmd/server/logs/app.log
+
