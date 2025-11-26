@@ -191,17 +191,16 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 		return
 	}
 
-	// 异步生成和保存向量
-	go func() {
-		embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
-		if err != nil {
-			logger.WithError(err).Errorf("Failed to generate embedding for knowledge %d", knowledge.ID)
-			return
-		}
-		if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
-			logger.WithError(err).Errorf("Failed to save embedding for knowledge %d", knowledge.ID)
-		}
-	}()
+	// 生成和保存向量
+	embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to generate embedding")
+		return
+	}
+	if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save embedding")
+		return
+	}
 
 	// 处理标签
 	if len(req.Tags) > 0 {
@@ -292,18 +291,17 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 		return
 	}
 
-	// 如果内容有变化，异步更新向量
+	// 如果内容有变化，更新向量
 	if contentChanged {
-		go func() {
-			embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
-			if err != nil {
-				logger.WithError(err).Errorf("Failed to generate embedding for knowledge %d", knowledge.ID)
-				return
-			}
-			if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
-				logger.WithError(err).Errorf("Failed to save embedding for knowledge %d", knowledge.ID)
-			}
-		}()
+		embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to generate embedding")
+			return
+		}
+		if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save embedding")
+			return
+		}
 	}
 
 	// 处理标签
