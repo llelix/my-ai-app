@@ -10,7 +10,6 @@ import (
 	"ai-knowledge-app/internal/models"
 	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
-	"ai-knowledge-app/pkg/logger"
 	"ai-knowledge-app/pkg/utils"
 
 	"github.com/gin-gonic/gin"

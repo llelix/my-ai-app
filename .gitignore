@@ -1,5 +1,7 @@
 *.log
 *.qoder
 */logs/*
-*app.log
+*.env
 
+backend/cmd/server/logs/app.log
+__debug*
