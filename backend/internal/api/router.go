@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
+	"ai-knowledge-app/internal/ai"
 	"ai-knowledge-app/internal/config"
 	"ai-knowledge-app/internal/middleware"
 	"ai-knowledge-app/internal/models"
-	"ai-knowledge-app/internal/ai"
+	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
 	"ai-knowledge-app/pkg/utils"
 
@@ -16,28 +17,31 @@ import (
 
 // Router API路由器
 type Router struct {
-	config          *config.Config
+	config           *config.Config
 	knowledgeHandler *KnowledgeHandler
-	aiHandler       *AIHandler
-	categoryHandler *CategoryHandler
-	tagHandler      *TagHandler
+	aiHandler        *AIHandler
+	categoryHandler  *CategoryHandler
+	tagHandler       *TagHandler
+	vectorService    service.VectorService
 }
 
 // NewRouter 创建新的路由器
-func NewRouter(config *config.Config) *Router {
+func NewRouter(config *config.Config, vectorService service.VectorService) *Router {
 	// 创建AI服务
 	aiService := ai.NewAIService(&config.AI)
+	aiService.SetVectorService(vectorService)
 
 	// 创建处理器
 	aiHandler := NewAIHandler()
 	aiHandler.SetAIService(aiService)
 
 	return &Router{
-		config: config,
-		knowledgeHandler: NewKnowledgeHandler(),
-		aiHandler:       aiHandler,
-		categoryHandler: NewCategoryHandler(),
-		tagHandler:      NewTagHandler(),
+		config:           config,
+		knowledgeHandler: NewKnowledgeHandler(vectorService),
+		aiHandler:        aiHandler,
+		categoryHandler:  NewCategoryHandler(),
+		tagHandler:       NewTagHandler(),
+		vectorService:    vectorService,
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"ai-knowledge-app/internal/config"
 	"ai-knowledge-app/internal/models"
 
+	"github.com/pgvector/pgvector-go"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -108,12 +109,19 @@ func initPostgresDB(cfg *config.DatabaseConfig, gormConfig *gorm.Config) (*gorm.
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Shanghai",
 		cfg.Host, cfg.User, cfg.Password, cfg.DBName, cfg.Port)
 
-	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
-	if err != nil {
-		return nil, err
+	var db *gorm.DB
+	var err error
+
+	for i := 0; i < 5; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), gormConfig)
+		if err == nil {
+			return db, nil
+		}
+		log.Printf("Failed to connect to database, retrying in 5 seconds... (%d/5)", i+1)
+		time.Sleep(5 * time.Second)
 	}
 
-	return db, nil
+	return nil, err
 }
 
 // AutoMigrate 自动迁移数据库表结构
@@ -217,12 +225,14 @@ func SeedDatabase() error {
 	}
 
 	// 创建示例知识条目
+	dummyVector := make([]float32, 1536)
 	sampleKnowledge := []models.Knowledge{
 		{
-			Title:      "Go语言基础",
-			Content:    "Go是Google开发的编程语言，具有简洁的语法、高效的并发性能和丰富的标准库。",
-			Summary:    "Go语言是一种现代化的编程语言，特别适合构建高性能的网络服务。",
-			CategoryID: 1, // 技术分类
+			Title:         "Go语言基础",
+			Content:       "Go是Google开发的编程语言，具有简洁的语法、高效的并发性能和丰富的标准库。",
+			ContentVector: pgvector.NewVector(dummyVector),
+			Summary:       "Go语言是一种现代化的编程语言，特别适合构建高性能的网络服务。",
+			CategoryID:    1, // 技术分类
 			Metadata: models.Metadata{
 				Author:     "浮浮酱",
 				Source:     "官方文档",
@@ -233,10 +243,11 @@ func SeedDatabase() error {
 			IsPublished: true,
 		},
 		{
-			Title:      "React Hooks简介",
-			Content:    "React Hooks让你在不编写class的情况下使用state以及其他的React特性。",
-			Summary:    "Hooks是React 16.8推出的新特性，简化了组件逻辑的复用。",
-			CategoryID: 1, // 技术分类
+			Title:         "React Hooks简介",
+			Content:       "React Hooks让你在不编写class的情况下使用state以及其他的React特性。",
+			ContentVector: pgvector.NewVector(dummyVector),
+			Summary:       "Hooks是React 16.8推出的新特性，简化了组件逻辑的复用。",
+			CategoryID:    1, // 技术分类
 			Metadata: models.Metadata{
 				Author:     "浮浮酱",
 				Source:     "React文档",

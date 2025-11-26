@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16.10
+    image: ankane/pgvector
     container_name: ai-knowledge-postgres
     restart: always
     environment:

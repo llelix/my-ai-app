@@ -12,6 +12,7 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'ai_knowledge_db')\gex
 -- 安装扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "citext";
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- 设置时区
 ALTER DATABASE ai_knowledge_db SET timezone TO 'Asia/Shanghai';

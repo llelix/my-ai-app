@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 	"gorm.io/gorm"
+	"github.com/pgvector/pgvector-go"
 )
 
 // Knowledge 知识条目模型
@@ -10,6 +11,7 @@ type Knowledge struct {
 	ID          uint           `json:"id" gorm:"primaryKey"`
 	Title       string         `json:"title" gorm:"not null;size:255;index"`
 	Content     string         `json:"content" gorm:"type:text"`
+	ContentVector pgvector.Vector `json:"-" gorm:"type:vector(1536)"`
 	Summary     string         `json:"summary" gorm:"type:text"`
 	CategoryID  uint           `json:"category_id" gorm:"index"`
 	Tags        []Tag          `json:"tags" gorm:"many2many:knowledge_tags;"`

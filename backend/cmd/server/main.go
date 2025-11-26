@@ -12,6 +12,7 @@ import (
 
 	"ai-knowledge-app/internal/api"
 	"ai-knowledge-app/internal/config"
+	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
 	"ai-knowledge-app/pkg/logger"
 
@@ -67,8 +68,11 @@ func main() {
 		logger.GetLogger().WithField("error", err).Fatal("Failed to seed database")
 	}
 
+	// 创建服务
+	vectorService := service.NewVectorService(&cfg.AI)
+
 	// 创建路由器
-	router := api.NewRouter(cfg)
+	router := api.NewRouter(cfg, vectorService)
 	engine := router.SetupRoutes()
 
 	// 创建HTTP服务器

@@ -1,13 +1,16 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"ai-knowledge-app/internal/models"
+	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
+	"ai-knowledge-app/pkg/logger"
 	"ai-knowledge-app/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -21,11 +24,15 @@ var Validate = validator.New()
 // ========== 知识库处理器 ==========
 
 // KnowledgeHandler 知识库处理器
-type KnowledgeHandler struct{}
+type KnowledgeHandler struct {
+	vectorService service.VectorService
+}
 
 // NewKnowledgeHandler 创建知识库处理器
-func NewKnowledgeHandler() *KnowledgeHandler {
-	return &KnowledgeHandler{}
+func NewKnowledgeHandler(vectorService service.VectorService) *KnowledgeHandler {
+	return &KnowledgeHandler{
+		vectorService: vectorService,
+	}
 }
 
 // CreateKnowledgeRequest 创建知识请求
@@ -184,6 +191,18 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 		return
 	}
 
+	// 异步生成和保存向量
+	go func() {
+		embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
+		if err != nil {
+			logger.WithError(err).Errorf("Failed to generate embedding for knowledge %d", knowledge.ID)
+			return
+		}
+		if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
+			logger.WithError(err).Errorf("Failed to save embedding for knowledge %d", knowledge.ID)
+		}
+	}()
+
 	// 处理标签
 	if len(req.Tags) > 0 {
 		if err := h.attachTags(&knowledge, req.Tags); err != nil {
@@ -233,12 +252,16 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 	if req.Title != "" {
 		knowledge.Title = utils.CleanText(req.Title)
 	}
-	if req.Content != "" {
+
+	contentChanged := false
+	if req.Content != "" && req.Content != knowledge.Content {
 		knowledge.Content = utils.CleanText(req.Content)
+		contentChanged = true
 	}
+
 	if req.Summary != "" {
 		knowledge.Summary = utils.CleanText(req.Summary)
-	} else if req.Content != "" {
+	} else if contentChanged {
 		// 如果更新了内容但没有提供摘要，自动生成
 		knowledge.Summary = utils.TruncateText(req.Content, 200)
 	}
@@ -267,6 +290,20 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 	if err := db.Save(&knowledge).Error; err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to update knowledge")
 		return
+	}
+
+	// 如果内容有变化，异步更新向量
+	if contentChanged {
+		go func() {
+			embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
+			if err != nil {
+				logger.WithError(err).Errorf("Failed to generate embedding for knowledge %d", knowledge.ID)
+				return
+			}
+			if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
+				logger.WithError(err).Errorf("Failed to save embedding for knowledge %d", knowledge.ID)
+			}
+		}()
 	}
 
 	// 处理标签

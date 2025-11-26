@@ -12,10 +12,11 @@ import (
 
 	"ai-knowledge-app/internal/config"
 	"ai-knowledge-app/internal/models"
+	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
 	"ai-knowledge-app/pkg/logger"
-	"ai-knowledge-app/pkg/utils"
 
+	"github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
 )
 
@@ -23,12 +24,14 @@ import (
 type AIService interface {
 	Query(ctx context.Context, req QueryRequest) (*QueryResponse, error)
 	GetModels() []string
+	SetVectorService(vectorService service.VectorService)
 }
 
 // OpenAIService OpenAI兼容的AI服务
 type OpenAIService struct {
-	config *config.AIConfig
-	client *http.Client
+	config        *config.AIConfig
+	client        *http.Client
+	vectorService service.VectorService
 }
 
 // QueryRequest AI查询请求
@@ -42,21 +45,21 @@ type QueryRequest struct {
 
 // QueryResponse AI查询响应
 type QueryResponse struct {
-	Response      string        `json:"response"`
-	Model         string        `json:"model"`
-	Tokens        int           `json:"tokens"`
-	Duration      time.Duration `json:"duration"`
-	KnowledgeIDs  []uint        `json:"knowledge_ids,omitempty"`
-	RelevantDocs  []string      `json:"relevant_docs,omitempty"`
+	Response     string        `json:"response"`
+	Model        string        `json:"model"`
+	Tokens       int           `json:"tokens"`
+	Duration     time.Duration `json:"duration"`
+	KnowledgeIDs []uint        `json:"knowledge_ids,omitempty"`
+	RelevantDocs []string      `json:"relevant_docs,omitempty"`
 }
 
 // OpenAIRequest OpenAI API请求结构
 type OpenAIRequest struct {
-	Model       string                 `json:"model"`
-	Messages    []OpenAIMessage         `json:"messages"`
-	Temperature float64                `json:"temperature"`
-	MaxTokens   int                    `json:"max_tokens"`
-	Stream      bool                   `json:"stream"`
+	Model       string          `json:"model"`
+	Messages    []OpenAIMessage `json:"messages"`
+	Temperature float64         `json:"temperature"`
+	MaxTokens   int             `json:"max_tokens"`
+	Stream      bool            `json:"stream"`
 }
 
 // OpenAIMessage OpenAI消息结构
@@ -67,19 +70,19 @@ type OpenAIMessage struct {
 
 // OpenAIResponse OpenAI API响应结构
 type OpenAIResponse struct {
-	ID      string        `json:"id"`
-	Object  string        `json:"object"`
-	Created int64         `json:"created"`
-	Model   string        `json:"model"`
+	ID      string         `json:"id"`
+	Object  string         `json:"object"`
+	Created int64          `json:"created"`
+	Model   string         `json:"model"`
 	Choices []OpenAIChoice `json:"choices"`
-	Usage   OpenAIUsage   `json:"usage"`
+	Usage   OpenAIUsage    `json:"usage"`
 }
 
 // OpenAIChoice OpenAI选择结构
 type OpenAIChoice struct {
-	Index   int           `json:"index"`
-	Message OpenAIMessage `json:"message"`
-	FinishReason string   `json:"finish_reason"`
+	Index        int           `json:"index"`
+	Message      OpenAIMessage `json:"message"`
+	FinishReason string        `json:"finish_reason"`
 }
 
 // OpenAIUsage OpenAI使用情况结构
@@ -99,12 +102,17 @@ func NewAIService(cfg *config.AIConfig) AIService {
 	}
 }
 
+// SetVectorService 设置向量服务
+func (s *OpenAIService) SetVectorService(vectorService service.VectorService) {
+	s.vectorService = vectorService
+}
+
 // Query 执行AI查询
 func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResponse, error) {
 	startTime := time.Now()
 
 	// 获取相关的知识库内容
-	relevantDocs, knowledgeIDs, err := s.searchRelevantKnowledge(req.Query)
+	relevantDocs, knowledgeIDs, err := s.searchRelevantKnowledge(ctx, req.Query)
 	if err != nil {
 		logger.WithError(err).Error("Failed to search relevant knowledge")
 	}
@@ -119,10 +127,10 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 	}
 
 	// 如果有上下文，添加到消息中
-	for _, ctx := range req.Context {
+	for _, c := range req.Context {
 		messages = append(messages, OpenAIMessage{
 			Role:    "system",
-			Content: fmt.Sprintf("参考信息: %s", ctx),
+			Content: fmt.Sprintf("参考信息: %s", c),
 		})
 	}
 
@@ -236,40 +244,21 @@ func (s *OpenAIService) callOpenAI(ctx context.Context, req OpenAIRequest) (stri
 }
 
 // searchRelevantKnowledge 搜索相关知识
-func (s *OpenAIService) searchRelevantKnowledge(query string) ([]string, []uint, error) {
+func (s *OpenAIService) searchRelevantKnowledge(ctx context.Context, query string) ([]string, []uint, error) {
 	db := database.GetDatabase()
 
-	// 关键词提取
-	keywords := utils.ExtractKeywords(query)
-	if len(keywords) == 0 {
-		return nil, nil, nil
+	// 1. 生成查询的向量
+	queryEmbedding, err := s.vectorService.GenerateEmbedding(ctx, query)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate query embedding: %w", err)
 	}
 
-	// 构建搜索查询
+	// 2. 在数据库中进行向量相似度搜索
 	var knowledges []models.Knowledge
-	queryBuilder := db.Model(&models.Knowledge{}).
-		Preload("Category").
-		Preload("Tags").
-		Where("is_published = ? AND (deleted_at IS NULL)", true)
-
-	// 多条件搜索
-	searchConditions := []string{}
-	searchParams := []interface{}{}
-
-	for _, keyword := range keywords {
-		searchPattern := "%" + keyword + "%"
-		searchConditions = append(searchConditions, "title LIKE ? OR content LIKE ? OR summary LIKE ? OR metadata.keywords LIKE ?")
-		searchParams = append(searchParams, searchPattern, searchPattern, searchPattern, searchPattern)
-	}
-
-	if len(searchConditions) > 0 {
-		queryString := "(" + strings.Join(searchConditions, " OR ") + ")"
-		queryBuilder = queryBuilder.Where(queryString, searchParams...)
-	}
-
-	// 限制返回数量并按相关性排序（简单实现：按创建时间和查看次数）
-	err := queryBuilder.
-		Order("view_count DESC, created_at DESC").
+	err = db.Model(&models.Knowledge{}).
+		Select("*, (content_vector <-> ?) as distance", pgvector.NewVector(queryEmbedding.Slice())).
+		Where("is_published = ? AND (deleted_at IS NULL)", true).
+		Order("distance").
 		Limit(5).
 		Find(&knowledges).Error
 
