@@ -111,10 +111,17 @@ func (s *OpenAIService) SetVectorService(vectorService service.VectorService) {
 func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResponse, error) {
 	startTime := time.Now()
 
+	// 强制使用 deepseek-r1 模型
+	model := "deepseek-r1"
+	if req.Model != "" && req.Model != "deepseek-r1" {
+		logger.GetLogger().WithField("requested_model", req.Model).Warn("Ignoring requested model, using deepseek-r1 only")
+	}
+
 	// 获取相关的知识库内容
 	relevantDocs, knowledgeIDs, err := s.searchRelevantKnowledge(ctx, req.Query)
 	if err != nil {
-		logger.WithError(err).Error("Failed to search relevant knowledge")
+		logger.GetLogger().WithError(err).Error("Failed to search relevant knowledge")
+		// 继续执行，不要因为向量搜索失败而终止整个查询
 	}
 
 	// 构建系统提示
@@ -134,12 +141,6 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 		})
 	}
 
-	// 选择模型
-	model := req.Model
-	if model == "" {
-		model = s.config.OpenAI.Model
-	}
-
 	// 构建OpenAI请求
 	openaiReq := OpenAIRequest{
 		Model:       model,
@@ -152,7 +153,8 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 	// 调用API
 	response, err := s.callOpenAI(ctx, openaiReq)
 	if err != nil {
-		return nil, err
+		logger.GetLogger().WithError(err).Error("AI query failed")
+		return nil, fmt.Errorf("AI service error: %w", err)
 	}
 
 	// 计算执行时间
@@ -176,17 +178,16 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 
 // callOpenAI 调用OpenAI兼容API
 func (s *OpenAIService) callOpenAI(ctx context.Context, req OpenAIRequest) (string, error) {
-	// 确定使用的API配置
+	// 强制使用OpenAI配置，确保只使用deepseek-r1
 	baseURL := s.config.OpenAI.BaseURL
 	apiKey := s.config.OpenAI.APIKey
 
-	// 如果配置了Claude，优先使用Claude
-	if s.config.Claude.APIKey != "" {
-		baseURL = s.config.Claude.BaseURL
-		apiKey = s.config.Claude.APIKey
-		if req.Model == "" || req.Model == s.config.OpenAI.Model {
-			req.Model = s.config.Claude.Model
-		}
+	// 验证配置
+	if baseURL == "" {
+		return "", fmt.Errorf("OpenAI BaseURL is not configured")
+	}
+	if apiKey == "" {
+		return "", fmt.Errorf("OpenAI API key is not configured")
 	}
 
 	// 构建请求body
@@ -245,12 +246,23 @@ func (s *OpenAIService) callOpenAI(ctx context.Context, req OpenAIRequest) (stri
 
 // searchRelevantKnowledge 搜索相关知识
 func (s *OpenAIService) searchRelevantKnowledge(ctx context.Context, query string) ([]string, []uint, error) {
+	// 检查向量服务是否可用
+	if s.vectorService == nil {
+		logger.GetLogger().Warn("Vector service is not available, skipping knowledge search")
+		return []string{}, []uint{}, nil
+	}
+
 	db := database.GetDatabase()
+	if db == nil {
+		logger.GetLogger().Warn("Database is not available, skipping knowledge search")
+		return []string{}, []uint{}, nil
+	}
 
 	// 1. 生成查询的向量
 	queryEmbedding, err := s.vectorService.GenerateEmbedding(ctx, query)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate query embedding: %w", err)
+		logger.GetLogger().WithError(err).Warn("Failed to generate query embedding, continuing without knowledge search")
+		return []string{}, []uint{}, nil
 	}
 
 	// 2. 在数据库中进行向量相似度搜索
@@ -263,7 +275,8 @@ func (s *OpenAIService) searchRelevantKnowledge(ctx context.Context, query strin
 		Find(&knowledges).Error
 
 	if err != nil {
-		return nil, nil, err
+		logger.GetLogger().WithError(err).Warn("Failed to search knowledge base, continuing without relevant documents")
+		return []string{}, []uint{}, nil
 	}
 
 	// 提取文档内容和相关知识ID
@@ -357,29 +370,6 @@ func (s *OpenAIService) saveQueryHistory(req QueryRequest, resp *QueryResponse) 
 
 // GetModels 获取支持的模型列表
 func (s *OpenAIService) GetModels() []string {
-	models := []string{
-		// OpenAI兼容的模型
-		"gpt-3.5-turbo",
-		"gpt-3.5-turbo-16k",
-		"gpt-4",
-		"gpt-4-32k",
-		"gpt-4-turbo-preview",
-
-		// 国内常用模型
-		"qwen-turbo",
-		"qwen-plus",
-		"qwen-max",
-		"moonshot-v1-8k",
-		"moonshot-v1-32k",
-		"moonshot-v1-128k",
-		"glm-3-turbo",
-		"glm-4",
-
-		// Claude模型
-		"claude-3-sonnet-20240229",
-		"claude-3-opus-20240229",
-		"claude-3-haiku-20240307",
-	}
-
-	return models
+	// 只返回 deepseek-r1 模型
+	return []string{"deepseek-r1"}
 }

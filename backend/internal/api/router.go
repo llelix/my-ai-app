@@ -69,6 +69,7 @@ func (r *Router) SetupRoutes() *gin.Engine {
 
 	// 健康检查端点
 	router.GET("/health", r.healthCheck)
+	router.GET("/debug/config", r.debugConfig)
 
 	// API版本分组
 	v1 := router.Group("/api/v1")
@@ -170,6 +171,38 @@ func (r *Router) healthCheck(c *gin.Context) {
 		"timestamp": time.Now().Unix(),
 		"version":   "1.0.0",
 	})
+}
+
+// debugConfig 调试配置信息
+func (r *Router) debugConfig(c *gin.Context) {
+	// 只返回安全的配置信息（不包含敏感信息）
+	config := gin.H{
+		"server": gin.H{
+			"host": r.config.Server.Host,
+			"port": r.config.Server.Port,
+			"mode": r.config.Server.Mode,
+		},
+		"database": gin.H{
+			"type": r.config.Database.Type,
+			"host": r.config.Database.Host,
+			"port": r.config.Database.Port,
+		},
+		"ai": gin.H{
+			"provider": r.config.AI.Provider,
+			"openai": gin.H{
+				"base_url": r.config.AI.OpenAI.BaseURL,
+				"model":    r.config.AI.OpenAI.Model,
+				"has_key":  r.config.AI.OpenAI.APIKey != "",
+			},
+			"claude": gin.H{
+				"base_url": r.config.AI.Claude.BaseURL,
+				"model":    r.config.AI.Claude.Model,
+				"has_key":  r.config.AI.Claude.APIKey != "",
+			},
+		},
+	}
+
+	utils.SuccessResponse(c, config)
 }
 
 // getOverviewStats 获取概览统计

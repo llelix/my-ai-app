@@ -225,12 +225,11 @@ func SeedDatabase() error {
 	}
 
 	// 创建示例知识条目
-	dummyVector := make([]float32, 1536)
 	sampleKnowledge := []models.Knowledge{
 		{
 			Title:         "Go语言基础",
 			Content:       "Go是Google开发的编程语言，具有简洁的语法、高效的并发性能和丰富的标准库。",
-			ContentVector: pgvector.NewVector(dummyVector),
+			ContentVector: &pgvector.Vector{},
 			Summary:       "Go语言是一种现代化的编程语言，特别适合构建高性能的网络服务。",
 			CategoryID:    1, // 技术分类
 			Metadata: models.Metadata{
@@ -245,7 +244,7 @@ func SeedDatabase() error {
 		{
 			Title:         "React Hooks简介",
 			Content:       "React Hooks让你在不编写class的情况下使用state以及其他的React特性。",
-			ContentVector: pgvector.NewVector(dummyVector),
+			ContentVector: &pgvector.Vector{},
 			Summary:       "Hooks是React 16.8推出的新特性，简化了组件逻辑的复用。",
 			CategoryID:    1, // 技术分类
 			Metadata: models.Metadata{

@@ -173,6 +173,7 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 	knowledge := models.Knowledge{
 		Title:       utils.CleanText(req.Title),
 		Content:     utils.CleanText(req.Content),
+		ContentVector: nil, // 初始为空，后续异步生成
 		Summary:     utils.CleanText(req.Summary),
 		CategoryID:  req.CategoryID,
 		Metadata:    req.Metadata,
@@ -186,25 +187,27 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 
 	// 保存知识
 	if err := db.Create(&knowledge).Error; err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create knowledge")
+		utils.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to create knowledge: %v", err))
 		return
 	}
 
-	// 生成和保存向量
-	embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to generate embedding")
-		return
-	}
-	if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save embedding")
-		return
-	}
+	// 异步生成和保存向量（不阻塞主流程）
+	go func(knowledgeID uint) {
+		embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
+		if err != nil {
+			// 向量生成失败，不影响知识保存，只记录日志
+			// logger.GetLogger().WithError(err).Warn("Failed to generate embedding for knowledge ID: ", knowledgeID)
+			return
+		}
+		if err := db.Model(&models.Knowledge{}).Where("id = ?", knowledgeID).Update("content_vector", &embedding).Error; err != nil {
+			// logger.GetLogger().WithError(err).Warn("Failed to save embedding for knowledge ID: ", knowledgeID)
+		}
+	}(knowledge.ID)
 
 	// 处理标签
 	if len(req.Tags) > 0 {
 		if err := h.attachTags(&knowledge, req.Tags); err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to attach tags")
+			utils.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to attach tags: %v", err))
 			return
 		}
 	}
@@ -290,16 +293,17 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 		return
 	}
 
-	// 如果内容有变化，更新向量
-	if contentChanged {
+	// 如果内容有变化且不为空，更新向量
+	if contentChanged && knowledge.Content != "" {
 		embedding, err := h.vectorService.GenerateEmbedding(context.Background(), knowledge.Content)
 		if err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to generate embedding")
-			return
-		}
-		if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save embedding")
-			return
+			// 即使生成向量失败，也应保存知识的其他更新
+			// 但记录一个错误日志
+			// logger.GetLogger().WithError(err).Warn("Failed to update embedding for knowledge ID: ", knowledge.ID)
+		} else {
+			if err := db.Model(&knowledge).Update("content_vector", embedding).Error; err != nil {
+				// logger.GetLogger().WithError(err).Warn("Failed to save embedding for knowledge ID: ", knowledge.ID)
+			}
 		}
 	}
 
