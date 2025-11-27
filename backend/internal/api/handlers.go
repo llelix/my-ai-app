@@ -36,27 +36,36 @@ func NewKnowledgeHandler(vectorService service.VectorService) *KnowledgeHandler 
 
 // CreateKnowledgeRequest 创建知识请求
 type CreateKnowledgeRequest struct {
-	Title      string            `json:"title" binding:"required,min=1,max=255"`
-	Content    string            `json:"content" binding:"required"`
-	Summary    string            `json:"summary"`
-	CategoryID uint              `json:"category_id"`
-	Tags       []string          `json:"tags"`
-	Metadata   models.Metadata   `json:"metadata"`
-	IsPublished bool             `json:"is_published"`
+	Title       string          `json:"title" binding:"required,min=1,max=255"`
+	Content     string          `json:"content" binding:"required"`
+	Summary     string          `json:"summary"`
+	CategoryID  uint            `json:"category_id"`
+	Tags        []string        `json:"tags"`
+	Metadata    models.Metadata `json:"metadata"`
+	IsPublished bool            `json:"is_published"`
 }
 
 // UpdateKnowledgeRequest 更新知识请求
 type UpdateKnowledgeRequest struct {
-	Title      string            `json:"title" binding:"omitempty,min=1,max=255"`
-	Content    string            `json:"content"`
-	Summary    string            `json:"summary"`
-	CategoryID uint              `json:"category_id"`
-	Tags       []string          `json:"tags"`
-	Metadata   models.Metadata   `json:"metadata"`
-	IsPublished *bool            `json:"is_published"`
+	Title       string          `json:"title" binding:"omitempty,min=1,max=255"`
+	Content     string          `json:"content"`
+	Summary     string          `json:"summary"`
+	CategoryID  uint            `json:"category_id"`
+	Tags        []string        `json:"tags"`
+	Metadata    models.Metadata `json:"metadata"`
+	IsPublished *bool           `json:"is_published"`
 }
 
 // GetKnowledges 获取知识列表
+// @Summary Get knowledge list
+// @Description Get paginated list of knowledge entries
+// @Tags knowledge
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(10)
+// @Success 200 {object} models.KnowledgeListResponse
+// @Router /knowledge [get]
 func (h *KnowledgeHandler) GetKnowledges(c *gin.Context) {
 	db := database.GetDatabase()
 
@@ -171,13 +180,13 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 
 	// 创建知识
 	knowledge := models.Knowledge{
-		Title:       utils.CleanText(req.Title),
-		Content:     utils.CleanText(req.Content),
+		Title:         utils.CleanText(req.Title),
+		Content:       utils.CleanText(req.Content),
 		ContentVector: nil, // 初始为空，后续异步生成
-		Summary:     utils.CleanText(req.Summary),
-		CategoryID:  req.CategoryID,
-		Metadata:    req.Metadata,
-		IsPublished: req.IsPublished,
+		Summary:       utils.CleanText(req.Summary),
+		CategoryID:    req.CategoryID,
+		Metadata:      req.Metadata,
+		IsPublished:   req.IsPublished,
 	}
 
 	// 如果没有提供摘要，自动生成
@@ -507,7 +516,7 @@ func (h *KnowledgeHandler) attachTags(knowledge *models.Knowledge, tagNames []st
 			if err == gorm.ErrRecordNotFound {
 				// 创建新标签
 				tag = models.Tag{
-					Name: tagName,
+					Name:  tagName,
 					Color: generateRandomColor(),
 				}
 				if err := db.Create(&tag).Error; err != nil {

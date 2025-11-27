@@ -1,12 +1,8 @@
 package ai
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -17,6 +13,9 @@ import (
 	"ai-knowledge-app/pkg/logger"
 
 	"github.com/pgvector/pgvector-go"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/tmc/langchaingo/prompts"
 	"gorm.io/gorm"
 )
 
@@ -30,7 +29,7 @@ type AIService interface {
 // OpenAIService OpenAI兼容的AI服务
 type OpenAIService struct {
 	config        *config.AIConfig
-	client        *http.Client
+	llm           llms.Model
 	vectorService service.VectorService
 }
 
@@ -53,52 +52,27 @@ type QueryResponse struct {
 	RelevantDocs []string      `json:"relevant_docs,omitempty"`
 }
 
-// OpenAIRequest OpenAI API请求结构
-type OpenAIRequest struct {
-	Model       string          `json:"model"`
-	Messages    []OpenAIMessage `json:"messages"`
-	Temperature float64         `json:"temperature"`
-	MaxTokens   int             `json:"max_tokens"`
-	Stream      bool            `json:"stream"`
-}
-
-// OpenAIMessage OpenAI消息结构
-type OpenAIMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// OpenAIResponse OpenAI API响应结构
-type OpenAIResponse struct {
-	ID      string         `json:"id"`
-	Object  string         `json:"object"`
-	Created int64          `json:"created"`
-	Model   string         `json:"model"`
-	Choices []OpenAIChoice `json:"choices"`
-	Usage   OpenAIUsage    `json:"usage"`
-}
-
-// OpenAIChoice OpenAI选择结构
-type OpenAIChoice struct {
-	Index        int           `json:"index"`
-	Message      OpenAIMessage `json:"message"`
-	FinishReason string        `json:"finish_reason"`
-}
-
-// OpenAIUsage OpenAI使用情况结构
-type OpenAIUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-}
 
 // NewAIService 创建AI服务实例
 func NewAIService(cfg *config.AIConfig) AIService {
+	// 创建LangChain-Go OpenAI LLM实例
+	llm, err := openai.New(
+		openai.WithModel(cfg.OpenAI.Model),
+		openai.WithBaseURL(cfg.OpenAI.BaseURL),
+		openai.WithToken(cfg.OpenAI.APIKey),
+	)
+	if err != nil {
+		logger.GetLogger().WithError(err).Error("Failed to create OpenAI LLM")
+		// 返回一个基本的实例，后续可以重试
+		return &OpenAIService{
+			config: cfg,
+			llm:    nil,
+		}
+	}
+
 	return &OpenAIService{
 		config: cfg,
-		client: &http.Client{
-			Timeout: 60 * time.Second,
-		},
+		llm:    llm,
 	}
 }
 
@@ -111,16 +85,18 @@ func (s *OpenAIService) SetVectorService(vectorService service.VectorService) {
 func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResponse, error) {
 	startTime := time.Now()
 
-	// 使用配置中的模型，如果没有指定则使用环境变量中的默认模型
-	model := req.Model
-	if model == "" {
-		model = s.config.OpenAI.Model
-	}
-
-	// 如果模型仍然为空，使用默认值
-	if model == "" {
-		model = "gpt-3.5-turbo"
-		logger.GetLogger().Warn("No model configured, using default gpt-3.5-turbo")
+	// 检查LLM是否已初始化
+	if s.llm == nil {
+		// 尝试重新初始化LLM
+		llm, err := openai.New(
+			openai.WithModel(s.config.OpenAI.Model),
+			openai.WithBaseURL(s.config.OpenAI.BaseURL),
+			openai.WithToken(s.config.OpenAI.APIKey),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize LLM: %w", err)
+		}
+		s.llm = llm
 	}
 
 	// 获取相关的知识库内容
@@ -133,40 +109,60 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 	// 构建系统提示
 	systemPrompt := s.buildSystemPrompt(relevantDocs)
 
-	// 构建消息
-	messages := []OpenAIMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: req.Query},
-	}
+	// 使用LangChain-Go的提示模板
+	promptTemplate := prompts.NewPromptTemplate(
+		systemPrompt,
+		[]string{"query"},
+	)
 
-	// 如果有上下文，添加到消息中
-	for _, c := range req.Context {
-		messages = append(messages, OpenAIMessage{
-			Role:    "system",
-			Content: fmt.Sprintf("参考信息: %s", c),
-		})
-	}
-
-	// 构建OpenAI请求
-	openaiReq := OpenAIRequest{
-		Model:       model,
-		Messages:    messages,
-		Temperature: req.Temperature,
-		MaxTokens:   req.MaxTokens,
-		Stream:      false,
-	}
-
-	// 调用API
-	response, err := s.callOpenAI(ctx, openaiReq)
+	// 格式化提示
+	formattedPrompt, err := promptTemplate.Format(map[string]any{
+		"query": req.Query,
+	})
 	if err != nil {
-		logger.GetLogger().WithError(err).Error("AI query failed")
-		return nil, fmt.Errorf("AI service error: %w", err)
+		return nil, fmt.Errorf("failed to format prompt: %w", err)
+	}
+
+	// 使用LangChain-Go生成响应
+	var response string
+	if req.Temperature > 0 || req.MaxTokens > 0 {
+		// 使用自定义选项
+		options := []llms.CallOption{
+			llms.WithTemperature(req.Temperature),
+		}
+		if req.MaxTokens > 0 {
+			options = append(options, llms.WithMaxTokens(req.MaxTokens))
+		}
+
+		// 使用GenerateFromSinglePrompt支持选项
+		completion, err := llms.GenerateFromSinglePrompt(ctx, s.llm, formattedPrompt, options...)
+		if err != nil {
+			logger.GetLogger().WithError(err).Error("AI query failed")
+			return nil, fmt.Errorf("AI service error: %w", err)
+		}
+		response = completion
+	} else {
+		// 使用默认选项
+		completion, err := llms.GenerateFromSinglePrompt(ctx, s.llm, formattedPrompt)
+		if err != nil {
+			logger.GetLogger().WithError(err).Error("AI query failed")
+			return nil, fmt.Errorf("AI service error: %w", err)
+		}
+		response = completion
 	}
 
 	// 计算执行时间
 	duration := time.Since(startTime)
 
 	// 构建响应
+	model := req.Model
+	if model == "" {
+		model = s.config.OpenAI.Model
+	}
+	if model == "" {
+		model = "gpt-3.5-turbo"
+	}
+
 	result := &QueryResponse{
 		Response:     response,
 		Model:        model,
@@ -182,73 +178,6 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 	return result, nil
 }
 
-// callOpenAI 调用OpenAI兼容API
-func (s *OpenAIService) callOpenAI(ctx context.Context, req OpenAIRequest) (string, error) {
-	// 使用OpenAI配置进行API调用
-	baseURL := s.config.OpenAI.BaseURL
-	apiKey := s.config.OpenAI.APIKey
-
-	// 验证配置
-	if baseURL == "" {
-		return "", fmt.Errorf("OpenAI BaseURL is not configured")
-	}
-	if apiKey == "" {
-		return "", fmt.Errorf("OpenAI API key is not configured")
-	}
-
-	// 构建请求body
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// 创建HTTP请求
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/chat/completions", bytes.NewBuffer(reqBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// 设置请求头
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
-
-	// 如果是Claude API，可能需要不同的授权头
-	if strings.Contains(baseURL, "anthropic.com") {
-		httpReq.Header.Set("x-api-key", apiKey)
-		httpReq.Header.Set("anthropic-version", "2023-06-01")
-	}
-
-	// 发送请求
-	resp, err := s.client.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// 检查HTTP状态
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	// 解析响应
-	var openaiResp OpenAIResponse
-	if err := json.Unmarshal(respBody, &openaiResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	// 提取回复内容
-	if len(openaiResp.Choices) == 0 {
-		return "", fmt.Errorf("no response choices returned")
-	}
-
-	return openaiResp.Choices[0].Message.Content, nil
-}
 
 // searchRelevantKnowledge 搜索相关知识
 func (s *OpenAIService) searchRelevantKnowledge(ctx context.Context, query string) ([]string, []uint, error) {
@@ -374,12 +303,13 @@ func (s *OpenAIService) saveQueryHistory(req QueryRequest, resp *QueryResponse) 
 	}
 }
 
-// GetModels 获取支持的模型列表
 func (s *OpenAIService) GetModels() []string {
-	// 返回配置中的模型
-	model := s.config.OpenAI.Model
-	if model == "" {
-		model = "gpt-3.5-turbo"
+	// 使用LangChain-Go的默认模型列表
+	// 这里我们可以返回一些常见的模型，或者通过LLM接口获取
+	return []string{
+		"gpt-4",
+		"gpt-4-turbo",
+		"gpt-3.5-turbo",
+		"gpt-3.5-turbo-16k",
 	}
-	return []string{model}
 }

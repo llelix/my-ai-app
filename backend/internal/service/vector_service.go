@@ -1,15 +1,13 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
 
 	"ai-knowledge-app/internal/config"
 	"github.com/pgvector/pgvector-go"
+	"github.com/tmc/langchaingo/embeddings"
+	"github.com/tmc/langchaingo/llms/openai"
 )
 
 // VectorService 向量服务接口
@@ -19,38 +17,38 @@ type VectorService interface {
 
 // OpenAIVectorService OpenAI向量服务
 type OpenAIVectorService struct {
-	config *config.AIConfig
-	client *http.Client
-}
-
-// EmbeddingRequest OpenAI embedding请求
-type EmbeddingRequest struct {
-	Input string `json:"input"`
-	Model string `json:"model"`
-}
-
-// EmbeddingResponse OpenAI embedding响应
-type EmbeddingResponse struct {
-	Object string `json:"object"`
-	Data   []struct {
-		Object    string    `json:"object"`
-		Embedding []float32 `json:"embedding"`
-		Index     int       `json:"index"`
-	} `json:"data"`
-	Model string `json:"model"`
-	Usage struct {
-		PromptTokens int `json:"prompt_tokens"`
-		TotalTokens  int `json:"total_tokens"`
-	} `json:"usage"`
+	config    *config.AIConfig
+	embedder  embeddings.Embedder
 }
 
 // NewVectorService 创建向量服务
 func NewVectorService(cfg *config.AIConfig) VectorService {
+	// 创建OpenAI LLM客户端用于embeddings
+	llm, err := openai.New(
+		openai.WithModel("text-embedding-ada-002"),
+		openai.WithBaseURL(cfg.OpenAI.BaseURL),
+		openai.WithToken(cfg.OpenAI.APIKey),
+	)
+	if err != nil {
+		// 如果创建失败，返回一个基本的实现
+		return &OpenAIVectorService{
+			config:   cfg,
+			embedder: nil,
+		}
+	}
+
+	// 创建embedder
+	embedder, err := embeddings.NewEmbedder(llm)
+	if err != nil {
+		return &OpenAIVectorService{
+			config:   cfg,
+			embedder: nil,
+		}
+	}
+
 	return &OpenAIVectorService{
-		config: cfg,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		config:   cfg,
+		embedder: embedder,
 	}
 }
 
@@ -60,47 +58,35 @@ func (s *OpenAIVectorService) GenerateEmbedding(ctx context.Context, text string
 		return pgvector.NewVector(nil), fmt.Errorf("input text cannot be empty")
 	}
 
-	model := "text-embedding-ada-002" // 默认模型
+	// 检查embedder是否已初始化
+	if s.embedder == nil {
+		// 尝试重新初始化embedder
+		llm, err := openai.New(
+			openai.WithModel("text-embedding-ada-002"),
+			openai.WithBaseURL(s.config.OpenAI.BaseURL),
+			openai.WithToken(s.config.OpenAI.APIKey),
+		)
+		if err != nil {
+			return pgvector.NewVector(nil), fmt.Errorf("failed to initialize LLM: %w", err)
+		}
 
-	reqBody := EmbeddingRequest{
-		Input: text,
-		Model: model,
+		embedder, err := embeddings.NewEmbedder(llm)
+		if err != nil {
+			return pgvector.NewVector(nil), fmt.Errorf("failed to initialize embedder: %w", err)
+		}
+		s.embedder = embedder
 	}
 
-	jsonData, err := json.Marshal(reqBody)
+	// 使用LangChain-Go生成embedding
+	vectors, err := s.embedder.EmbedDocuments(ctx, []string{text})
 	if err != nil {
-		return pgvector.NewVector(nil), fmt.Errorf("failed to marshal request body: %w", err)
+		return pgvector.NewVector(nil), fmt.Errorf("failed to generate embedding: %w", err)
 	}
 
-	baseURL := s.config.OpenAI.BaseURL
-	apiKey := s.config.OpenAI.APIKey
-
-	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/embeddings", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return pgvector.NewVector(nil), fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return pgvector.NewVector(nil), fmt.Errorf("failed to send request to embedding API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return pgvector.NewVector(nil), fmt.Errorf("embedding API request failed with status %d", resp.StatusCode)
-	}
-
-	var embeddingResp EmbeddingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&embeddingResp); err != nil {
-		return pgvector.NewVector(nil), fmt.Errorf("failed to decode embedding response: %w", err)
-	}
-
-	if len(embeddingResp.Data) == 0 || len(embeddingResp.Data[0].Embedding) == 0 {
+	if len(vectors) == 0 || len(vectors[0]) == 0 {
 		return pgvector.NewVector(nil), fmt.Errorf("no embedding data returned")
 	}
 
-	return pgvector.NewVector(embeddingResp.Data[0].Embedding), nil
+	// pgvector.NewVector接受[]float32，所以直接使用
+	return pgvector.NewVector(vectors[0]), nil
 }
