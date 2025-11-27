@@ -111,10 +111,16 @@ func (s *OpenAIService) SetVectorService(vectorService service.VectorService) {
 func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResponse, error) {
 	startTime := time.Now()
 
-	// 强制使用 deepseek-r1 模型
-	model := "deepseek-r1"
-	if req.Model != "" && req.Model != "deepseek-r1" {
-		logger.GetLogger().WithField("requested_model", req.Model).Warn("Ignoring requested model, using deepseek-r1 only")
+	// 使用配置中的模型，如果没有指定则使用环境变量中的默认模型
+	model := req.Model
+	if model == "" {
+		model = s.config.OpenAI.Model
+	}
+
+	// 如果模型仍然为空，使用默认值
+	if model == "" {
+		model = "gpt-3.5-turbo"
+		logger.GetLogger().Warn("No model configured, using default gpt-3.5-turbo")
 	}
 
 	// 获取相关的知识库内容
@@ -178,7 +184,7 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 
 // callOpenAI 调用OpenAI兼容API
 func (s *OpenAIService) callOpenAI(ctx context.Context, req OpenAIRequest) (string, error) {
-	// 强制使用OpenAI配置，确保只使用deepseek-r1
+	// 使用OpenAI配置进行API调用
 	baseURL := s.config.OpenAI.BaseURL
 	apiKey := s.config.OpenAI.APIKey
 
@@ -370,6 +376,10 @@ func (s *OpenAIService) saveQueryHistory(req QueryRequest, resp *QueryResponse) 
 
 // GetModels 获取支持的模型列表
 func (s *OpenAIService) GetModels() []string {
-	// 只返回 deepseek-r1 模型
-	return []string{"deepseek-r1"}
+	// 返回配置中的模型
+	model := s.config.OpenAI.Model
+	if model == "" {
+		model = "gpt-3.5-turbo"
+	}
+	return []string{model}
 }

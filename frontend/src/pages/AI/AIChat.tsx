@@ -55,6 +55,8 @@ const AIChat: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
   const [feedbackStates, setFeedbackStates] = useState<Record<string, 'up' | 'down'>>({});
+  const [availableModels, setAvailableModels] = useState<{ label: string; value: string }[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
 
   const {
     selectedModel,
@@ -69,16 +71,37 @@ const AIChat: React.FC = () => {
   const { knowledges } = useKnowledgeStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const models = [
-    { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
-    { label: 'GPT-4', value: 'gpt-4' },
-    { label: '通义千问 Plus', value: 'qwen-plus' },
-    { label: '通义千问 Max', value: 'qwen-max' },
-    { label: 'Moonshot-8K', value: 'moonshot-v1-8k' },
-    { label: 'Moonshot-32K', value: 'moonshot-v1-32k' },
-    { label: '智谱清言', value: 'glm-3-turbo' },
-    { label: 'Claude-3-Sonnet', value: 'claude-3-sonnet-20240229' },
-  ];
+  // Load available models from API
+  const loadModels = async () => {
+    try {
+      setModelsLoading(true);
+      const response = await aiService.getModels();
+      const modelList = response.data?.models || [];
+
+      // Convert model strings to label-value format
+      const formattedModels = modelList.map((modelId: string) => ({
+        label: modelId.charAt(0).toUpperCase() + modelId.slice(1).replace(/[-_]/g, ' '),
+        value: modelId
+      }));
+
+      setAvailableModels(formattedModels);
+
+      // If no model is selected or the selected model is not in the list, select the first one
+      if (!selectedModel || !modelList.includes(selectedModel)) {
+        if (modelList.length > 0) {
+          setSelectedModel(modelList[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load models:', error);
+      message.error('Failed to load available models');
+
+      // Fallback to empty array
+      setAvailableModels([]);
+    } finally {
+      setModelsLoading(false);
+    }
+  };
 
   // 加载查询历史
   const loadHistory = async () => {
@@ -93,6 +116,10 @@ const AIChat: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    loadModels();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -520,8 +547,11 @@ const AIChat: React.FC = () => {
               value={selectedModel}
               onChange={setSelectedModel}
               style={{ width: '100%' }}
+              loading={modelsLoading}
+              disabled={modelsLoading}
+              placeholder={modelsLoading ? "Loading models..." : "Select a model"}
             >
-              {models.map((model) => (
+              {availableModels.map((model) => (
                 <Option key={model.value} value={model.value}>
                   {model.label}
                 </Option>

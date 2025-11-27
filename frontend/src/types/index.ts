@@ -240,16 +240,8 @@ export const DEFAULT_PAGINATION: PaginationRequest = {
   order: 'desc',
 };
 
-export const AI_MODELS = [
-  'gpt-3.5-turbo',
-  'gpt-4',
-  'qwen-plus',
-  'qwen-max',
-  'moonshot-v1-8k',
-  'moonshot-v1-32k',
-  'glm-3-turbo',
-  'glm-4',
-];
+// AI_MODELS is now fetched dynamically from the API endpoint
+// Use aiService.getModels() to get the available models
 
 export const DIFFICULTY_OPTIONS = [
   { label: '简单', value: 'easy' },
