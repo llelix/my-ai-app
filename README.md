@@ -82,3 +82,7 @@ ai-knowledge-app/
 - Go 1.21+
 - Node.js 18+
 - SQLite 3.x
+
+## 运行项目
+cd ./backend/cmd/server/&&go run .
+cd ./frontend/&&npm run dev

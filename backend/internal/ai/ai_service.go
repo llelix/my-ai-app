@@ -2,7 +2,9 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -51,7 +53,6 @@ type QueryResponse struct {
 	KnowledgeIDs []uint        `json:"knowledge_ids,omitempty"`
 	RelevantDocs []string      `json:"relevant_docs,omitempty"`
 }
-
 
 // NewAIService 创建AI服务实例
 func NewAIService(cfg *config.AIConfig) AIService {
@@ -178,7 +179,6 @@ func (s *OpenAIService) Query(ctx context.Context, req QueryRequest) (*QueryResp
 	return result, nil
 }
 
-
 // searchRelevantKnowledge 搜索相关知识
 func (s *OpenAIService) searchRelevantKnowledge(ctx context.Context, query string) ([]string, []uint, error) {
 	// 检查向量服务是否可用
@@ -304,12 +304,94 @@ func (s *OpenAIService) saveQueryHistory(req QueryRequest, resp *QueryResponse) 
 }
 
 func (s *OpenAIService) GetModels() []string {
-	// 使用LangChain-Go的默认模型列表
-	// 这里我们可以返回一些常见的模型，或者通过LLM接口获取
+	// 构建API URL
+	url := s.config.OpenAI.BaseURL
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
+	url += "v1/models"
+
+	// 创建HTTP请求
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		logger.GetLogger().WithError(err).Error("Failed to create request for models")
+		return s.getDefaultModels()
+	}
+
+	// 添加认证头
+	req.Header.Add("Authorization", "Bearer "+s.config.OpenAI.APIKey)
+	req.Header.Add("Content-Type", "application/json")
+
+	// 发送请求
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.GetLogger().WithError(err).Error("Failed to fetch models")
+		return s.getDefaultModels()
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态码
+	if resp.StatusCode != http.StatusOK {
+		logger.GetLogger().WithField("status_code", resp.StatusCode).Error("Failed to fetch models, non-200 status code")
+		return s.getDefaultModels()
+	}
+
+	// 解析响应
+	var modelsResponse struct {
+		Object string `json:"object"`
+		Data   []struct {
+			ID      string `json:"id"`
+			Object  string `json:"object"`
+			Created int64  `json:"created"`
+			OwnedBy string `json:"owned_by"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&modelsResponse); err != nil {
+		logger.GetLogger().WithError(err).Error("Failed to decode models response")
+		return s.getDefaultModels()
+	}
+
+	// 提取模型ID
+	var modelIds []string
+	for _, model := range modelsResponse.Data {
+		modelIds = append(modelIds, model.ID)
+	}
+
+	// 如果没有获取到模型，返回默认模型
+	if len(modelIds) == 0 {
+		return s.getDefaultModels()
+	}
+
+	return modelIds
+}
+
+// getDefaultModels 返回默认模型列表
+func (s *OpenAIService) getDefaultModels() []string {
+	// 根据配置的base_url返回不同的默认模型
+	if strings.Contains(s.config.OpenAI.BaseURL, "api.chatanywhere.tech") {
+		return []string{
+			"gpt-3.5-turbo",
+			"gpt-3.5-turbo-16k",
+			"gpt-4",
+			"gpt-4-32k",
+			"gpt-4-turbo",
+			"deepseek-r1",
+			"deepseek-coder",
+		}
+	}
+
+	// OpenAI官方默认模型
 	return []string{
-		"gpt-4",
-		"gpt-4-turbo",
 		"gpt-3.5-turbo",
 		"gpt-3.5-turbo-16k",
+		"gpt-4",
+		"gpt-4-32k",
+		"gpt-4-turbo-preview",
+		"gpt-4-vision-preview",
 	}
 }
