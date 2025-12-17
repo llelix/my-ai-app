@@ -24,6 +24,7 @@ import {
   BellOutlined,
   SunOutlined,
   MoonOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useThemeStore } from '../store';
@@ -47,6 +48,11 @@ const menuItems = [
     key: ROUTES.TAGS,
     icon: <TagsOutlined />,
     label: '标签管理',
+  },
+  {
+    key: '/documents',
+    icon: <FileTextOutlined />,
+    label: '文档管理',
   },
   {
     key: ROUTES.AI_CHAT,

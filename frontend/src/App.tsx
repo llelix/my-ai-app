@@ -19,6 +19,7 @@ import AIChat from './pages/AI/AIChat';
 import AIHistory from './pages/AI/AIHistory';
 import Statistics from './pages/Statistics/Statistics';
 import Settings from './pages/Settings/Settings';
+import DocumentManagement from './pages/DocumentManagement';
 import NotFound from './pages/NotFound/NotFound';
 
 // 设置dayjs中文语言
@@ -67,6 +68,9 @@ const App: React.FC = () => {
               {/* AI对话 */}
               <Route path="ai/chat" element={<AIChat />} />
               <Route path="ai/history" element={<AIHistory />} />
+
+              {/* 文档管理 */}
+              <Route path="documents" element={<DocumentManagement />} />
 
               {/* 统计分析 */}
               <Route path="statistics" element={<Statistics />} />

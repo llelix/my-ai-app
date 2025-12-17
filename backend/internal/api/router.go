@@ -22,6 +22,7 @@ type Router struct {
 	aiHandler        *AIHandler
 	categoryHandler  *CategoryHandler
 	tagHandler       *TagHandler
+	documentHandler  *DocumentHandler
 	vectorService    service.VectorService
 }
 
@@ -30,6 +31,9 @@ func NewRouter(config *config.Config, vectorService service.VectorService) *Rout
 	// 创建AI服务
 	aiService := ai.NewAIService(&config.AI)
 	aiService.SetVectorService(vectorService)
+
+	// 创建文档服务
+	documentService := service.NewDocumentService(database.GetDatabase())
 
 	// 创建处理器
 	aiHandler := NewAIHandler()
@@ -41,6 +45,7 @@ func NewRouter(config *config.Config, vectorService service.VectorService) *Rout
 		aiHandler:        aiHandler,
 		categoryHandler:  NewCategoryHandler(),
 		tagHandler:       NewTagHandler(),
+		documentHandler:  NewDocumentHandler(documentService),
 		vectorService:    vectorService,
 	}
 }
@@ -127,6 +132,17 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			stats.GET("/overview", r.getOverviewStats)
 			stats.GET("/knowledge", r.getKnowledgeStats)
 			stats.GET("/queries", r.getQueryStats)
+		}
+
+		// 文档管理路由
+		documents := v1.Group("/documents")
+		{
+			documents.POST("/upload", r.documentHandler.Upload)
+			documents.GET("", r.documentHandler.List)
+			documents.GET("/:id", r.documentHandler.Get)
+			documents.DELETE("/:id", r.documentHandler.Delete)
+			documents.PUT("/:id/description", r.documentHandler.UpdateDescription)
+			documents.GET("/:id/download", r.documentHandler.Download)
 		}
 
 		// 文件上传路由

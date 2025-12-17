@@ -137,6 +137,7 @@ func AutoMigrate() error {
 		&models.Knowledge{},
 		&models.KnowledgeTag{},
 		&models.QueryHistory{},
+		&models.Document{},
 	}
 
 	// 执行迁移
