@@ -4,8 +4,8 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -27,6 +27,25 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: #f0f2f5; /* 添加更合适的背景色 */
+}
+
+/* 清除可能的伪元素或装饰性元素 */
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 确保没有不必要的背景或边框 */
+html, body, #root {
+  background-color: #f0f2f5 !important;
+}
+
+/* 移除可能的装饰性元素 */
+.ant-layout::before,
+.ant-layout::after,
+.ant-layout-header::before,
+.ant-layout-header::after {
+  display: none !important;
 }
 
 h1 {
@@ -64,4 +83,42 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* 专门针对可能的黑色框框问题 */
+.ant-layout,
+.ant-layout-header,
+.ant-layout-sider,
+.ant-layout-content {
+  position: relative;
+}
+
+/* 移除任何可能的绝对定位的装饰元素 */
+.ant-layout::before,
+.ant-layout::after,
+.ant-layout-header::before,
+.ant-layout-header::after,
+.ant-layout-sider::before,
+.ant-layout-sider::after,
+.ant-layout-content::before,
+.ant-layout-content::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* 确保没有固定定位的黑色元素 */
+body *[style*="position: fixed"],
+body *[style*="position: absolute"] {
+  background-color: transparent !important;
+}
+
+/* 移除可能的阴影或边框 */
+.ant-layout {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* 确保根元素没有多余的装饰 */
+#root > * {
+  background-color: #f0f2f5 !important;
 }

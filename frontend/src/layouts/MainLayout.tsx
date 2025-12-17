@@ -209,7 +209,7 @@ export const MainLayout: React.FC = () => {
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
       {!isMobile && (
         <Sider
           trigger={null}
@@ -260,8 +260,8 @@ export const MainLayout: React.FC = () => {
         </Drawer>
       )}
 
-      <Layout>
-        <Header>
+      <Layout style={{ background: '#f0f2f5' }}>
+        <Header style={{ padding: 0, background: token.colorBgContainer }}>
           <HeaderContent />
         </Header>
         <Content>

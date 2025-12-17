@@ -5,6 +5,7 @@
   padding: 0;
   text-align: left; /* 改为左对齐，适合应用布局 */
   overflow: hidden; /* 防止出现不必要的滚动条 */
+  background-color: #f0f2f5;
 }
 
 .logo {
