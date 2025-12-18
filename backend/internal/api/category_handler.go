@@ -33,6 +33,14 @@ type CreateCategoryRequest struct {
 }
 
 // GetCategories 获取分类列表
+// @Summary 获取分类列表
+// @Description 获取所有分类，支持按状态过滤
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param is_active query boolean false "是否激活"
+// @Success 200 {object} utils.Response
+// @Router /categories [get]
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
 	db := database.GetDatabase()
 

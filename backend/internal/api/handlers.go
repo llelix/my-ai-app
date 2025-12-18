@@ -64,7 +64,7 @@ type UpdateKnowledgeRequest struct {
 // @Produce json
 // @Param page query int false "Page number" default(1)
 // @Param page_size query int false "Page size" default(10)
-// @Success 200 {object} models.KnowledgeListResponse
+// @Success 200 {object} utils.PaginationResponse
 // @Router /knowledge [get]
 func (h *KnowledgeHandler) GetKnowledges(c *gin.Context) {
 	db := database.GetDatabase()
@@ -142,6 +142,15 @@ func (h *KnowledgeHandler) GetKnowledges(c *gin.Context) {
 }
 
 // GetKnowledge 获取单个知识
+// @Summary 获取单个知识条目
+// @Description 根据ID获取知识条目详情
+// @Tags knowledge
+// @Accept json
+// @Produce json
+// @Param id path int true "知识ID"
+// @Success 200 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Router /knowledge/{id} [get]
 func (h *KnowledgeHandler) GetKnowledge(c *gin.Context) {
 	db := database.GetDatabase()
 	id := c.Param("id")
@@ -160,6 +169,15 @@ func (h *KnowledgeHandler) GetKnowledge(c *gin.Context) {
 }
 
 // CreateKnowledge 创建知识
+// @Summary 创建新的知识条目
+// @Description 创建新的知识条目，支持分类和标签
+// @Tags knowledge
+// @Accept json
+// @Produce json
+// @Param request body CreateKnowledgeRequest true "创建知识请求"
+// @Success 200 {object} utils.Response
+// @Failure 400 {object} utils.Response
+// @Router /knowledge [post]
 func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 	db := database.GetDatabase()
 
@@ -228,6 +246,17 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 }
 
 // UpdateKnowledge 更新知识
+// @Summary 更新知识条目
+// @Description 更新指定ID的知识条目
+// @Tags knowledge
+// @Accept json
+// @Produce json
+// @Param id path int true "知识ID"
+// @Param request body UpdateKnowledgeRequest true "更新知识请求"
+// @Success 200 {object} utils.Response
+// @Failure 400 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Router /knowledge/{id} [put]
 func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 	db := database.GetDatabase()
 	id := c.Param("id")
@@ -334,6 +363,15 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 }
 
 // DeleteKnowledge 删除知识
+// @Summary 删除知识条目
+// @Description 软删除指定ID的知识条目
+// @Tags knowledge
+// @Accept json
+// @Produce json
+// @Param id path int true "知识ID"
+// @Success 200 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Router /knowledge/{id} [delete]
 func (h *KnowledgeHandler) DeleteKnowledge(c *gin.Context) {
 	db := database.GetDatabase()
 	id := c.Param("id")

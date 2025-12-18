@@ -13,6 +13,8 @@ import (
 	"ai-knowledge-app/pkg/utils"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // Router API路由器
@@ -75,6 +77,9 @@ func (r *Router) SetupRoutes() *gin.Engine {
 	// 健康检查端点
 	router.GET("/health", r.healthCheck)
 	router.GET("/debug/config", r.debugConfig)
+
+	// Swagger文档路由
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API版本分组
 	v1 := router.Group("/api/v1")
@@ -161,6 +166,14 @@ func (r *Router) SetupRoutes() *gin.Engine {
 }
 
 // healthCheck 健康检查
+// @Summary 健康检查
+// @Description 检查服务和数据库连接状态
+// @Tags system
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {object} map[string]interface{}
+// @Router /health [get]
 func (r *Router) healthCheck(c *gin.Context) {
 	// 检查数据库连接
 	db := database.GetDatabase()

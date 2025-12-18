@@ -18,6 +18,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
+	_ "ai-knowledge-app/docs" // 导入生成的docs包
 )
 
 // @title AI知识库查询API

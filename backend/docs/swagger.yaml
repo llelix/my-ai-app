@@ -1,0 +1,467 @@
+basePath: /api/v1
+definitions:
+  ai-knowledge-app_internal_models.Category:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_models.Category'
+        type: array
+      color:
+        description: 十六进制颜色代码
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      knowledges:
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
+        type: array
+      name:
+        type: string
+      parent:
+        allOf:
+        - $ref: '#/definitions/ai-knowledge-app_internal_models.Category'
+        description: 关联
+      parent_id:
+        type: integer
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  ai-knowledge-app_internal_models.Knowledge:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/ai-knowledge-app_internal_models.Category'
+        description: 关联
+      category_id:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_published:
+        type: boolean
+      metadata:
+        $ref: '#/definitions/ai-knowledge-app_internal_models.Metadata'
+      query_history:
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_models.QueryHistory'
+        type: array
+      summary:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_models.Tag'
+        type: array
+      title:
+        type: string
+      updated_at:
+        type: string
+      view_count:
+        type: integer
+    type: object
+  ai-knowledge-app_internal_models.Metadata:
+    properties:
+      author:
+        type: string
+      difficulty:
+        description: easy, medium, hard
+        type: string
+      keywords:
+        type: string
+      language:
+        type: string
+      source:
+        type: string
+      word_count:
+        type: integer
+    type: object
+  ai-knowledge-app_internal_models.QueryHistory:
+    properties:
+      created_at:
+        type: string
+      duration:
+        description: 毫秒
+        type: integer
+      error_message:
+        type: string
+      id:
+        type: integer
+      is_success:
+        type: boolean
+      knowledge:
+        allOf:
+        - $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
+        description: 关联
+      knowledge_id:
+        type: integer
+      model:
+        type: string
+      query:
+        type: string
+      response:
+        type: string
+      tokens:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  ai-knowledge-app_internal_models.Tag:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      knowledges:
+        description: 关联
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
+        type: array
+      name:
+        type: string
+      updated_at:
+        type: string
+      usage_count:
+        type: integer
+    type: object
+  ai-knowledge-app_pkg_utils.PaginationResponse:
+    properties:
+      items: {}
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  ai-knowledge-app_pkg_utils.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  internal_api.CreateKnowledgeRequest:
+    properties:
+      category_id:
+        type: integer
+      content:
+        type: string
+      is_published:
+        type: boolean
+      metadata:
+        $ref: '#/definitions/ai-knowledge-app_internal_models.Metadata'
+      summary:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - content
+    - title
+    type: object
+  internal_api.QueryRequest:
+    properties:
+      context:
+        items:
+          type: string
+        type: array
+      max_tokens:
+        type: integer
+      model:
+        type: string
+      query:
+        maxLength: 1000
+        minLength: 1
+        type: string
+      temperature:
+        type: number
+    required:
+    - query
+    type: object
+  internal_api.QueryResponse:
+    properties:
+      duration:
+        description: 毫秒
+        type: integer
+      knowledge_ids:
+        items:
+          type: integer
+        type: array
+      model:
+        type: string
+      related_knowledges:
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
+        type: array
+      relevant_docs:
+        items:
+          type: string
+        type: array
+      response:
+        type: string
+      tokens:
+        type: integer
+    type: object
+  internal_api.UpdateKnowledgeRequest:
+    properties:
+      category_id:
+        type: integer
+      content:
+        type: string
+      is_published:
+        type: boolean
+      metadata:
+        $ref: '#/definitions/ai-knowledge-app_internal_models.Metadata'
+      summary:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: 一个基于Go和Gin的AI知识库查询应用后端API
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: AI知识库查询API
+  version: "1.0"
+paths:
+  /ai/query:
+    post:
+      consumes:
+      - application/json
+      description: 基于存储的知识库进行AI智能查询
+      parameters:
+      - description: 查询请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.QueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_api.QueryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+      summary: AI智能查询
+      tags:
+      - ai
+  /categories:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有分类，支持按状态过滤
+      parameters:
+      - description: 是否激活
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+      summary: 获取分类列表
+      tags:
+      - categories
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: 检查服务和数据库连接状态
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 健康检查
+      tags:
+      - system
+  /knowledge:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of knowledge entries
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.PaginationResponse'
+      summary: Get knowledge list
+      tags:
+      - knowledge
+    post:
+      consumes:
+      - application/json
+      description: 创建新的知识条目，支持分类和标签
+      parameters:
+      - description: 创建知识请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.CreateKnowledgeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+      summary: 创建新的知识条目
+      tags:
+      - knowledge
+  /knowledge/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定ID的知识条目
+      parameters:
+      - description: 知识ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+      summary: 删除知识条目
+      tags:
+      - knowledge
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取知识条目详情
+      parameters:
+      - description: 知识ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+      summary: 获取单个知识条目
+      tags:
+      - knowledge
+    put:
+      consumes:
+      - application/json
+      description: 更新指定ID的知识条目
+      parameters:
+      - description: 知识ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新知识请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.UpdateKnowledgeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
+      summary: 更新知识条目
+      tags:
+      - knowledge
+swagger: "2.0"

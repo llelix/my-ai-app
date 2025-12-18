@@ -57,6 +57,16 @@ type QueryResponse struct {
 }
 
 // Query AI查询接口
+// @Summary AI智能查询
+// @Description 基于存储的知识库进行AI智能查询
+// @Tags ai
+// @Accept json
+// @Produce json
+// @Param request body QueryRequest true "查询请求"
+// @Success 200 {object} QueryResponse
+// @Failure 400 {object} utils.Response
+// @Failure 503 {object} utils.Response
+// @Router /ai/query [post]
 func (h *AIHandler) Query(c *gin.Context) {
 	if h.aiService == nil {
 		utils.ErrorResponse(c, http.StatusServiceUnavailable, "AI service is not configured")
