@@ -80,7 +80,7 @@ const AIChat: React.FC = () => {
 
       // Convert model strings to label-value format
       const formattedModels = modelList.map((modelId: string) => ({
-        label: modelId.charAt(0).toUpperCase() + modelId.slice(1).replace(/[-_]/g, ' '),
+        label: modelId,
         value: modelId
       }));
 
