@@ -7,3 +7,5 @@ backend/cmd/server/uploads/*
 backend/internal/ai/logs/app.log
 backend/internal/service/uploads/*
 .serena/*
+*config.yml
+backend/cmd/server/data/*
