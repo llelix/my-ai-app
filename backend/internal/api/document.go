@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 	"github.com/gin-gonic/gin"
@@ -109,7 +110,122 @@ func (h *DocumentHandler) Download(c *gin.Context) {
 		return
 	}
 
-	c.File(doc.FilePath)
+	// Use the new GetObject method to support both MinIO and local storage
+	reader, err := h.service.GetObject(doc.FilePath)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve file")
+		return
+	}
+	defer reader.Close()
+
+	// Set appropriate headers
+	c.Header("Content-Disposition", "attachment; filename="+doc.OriginalName)
+	c.Header("Content-Type", doc.MimeType)
+	c.Header("Content-Length", strconv.FormatInt(doc.FileSize, 10))
+
+	// Stream the file content
+	c.DataFromReader(http.StatusOK, doc.FileSize, doc.MimeType, reader, nil)
 }
 
+// CheckFile 检查文件是否存在（秒传）
+func (h *DocumentHandler) CheckFile(c *gin.Context) {
+	hash := c.Query("hash")
+	sizeStr := c.Query("size")
+	
+	if hash == "" || sizeStr == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Missing hash or size parameter")
+		return
+	}
+	
+	size, err := strconv.ParseInt(sizeStr, 10, 64)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid size parameter")
+		return
+	}
+	
+	doc, exists := h.service.CheckFile(hash, size)
+	
+	response := gin.H{
+		"exists": exists,
+	}
+	
+	if exists {
+		response["document"] = doc
+	}
+	
+	utils.SuccessResponse(c, response)
+}
 
+// InitUpload 初始化分块上传
+func (h *DocumentHandler) InitUpload(c *gin.Context) {
+	var req struct {
+		FileName string `json:"file_name" binding:"required"`
+		FileSize int64  `json:"file_size" binding:"required"`
+		FileHash string `json:"file_hash" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err.Error())
+		return
+	}
+	
+	session, err := h.service.InitUpload(req.FileName, req.FileSize, req.FileHash)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to initialize upload")
+		return
+	}
+	
+	utils.SuccessResponse(c, session)
+}
+
+// UploadChunk 上传分块
+func (h *DocumentHandler) UploadChunk(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	chunkIndexStr := c.Param("chunkIndex")
+	
+	chunkIndex, err := strconv.Atoi(chunkIndexStr)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid chunk index")
+		return
+	}
+	
+	// Read chunk data from request body
+	data, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Failed to read chunk data")
+		return
+	}
+	
+	if err := h.service.UploadChunk(sessionID, chunkIndex, data); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to upload chunk")
+		return
+	}
+	
+	utils.SuccessResponse(c, gin.H{"message": "Chunk uploaded successfully"})
+}
+
+// CompleteUpload 完成上传
+func (h *DocumentHandler) CompleteUpload(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	
+	doc, err := h.service.CompleteUpload(sessionID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to complete upload")
+		return
+	}
+	
+	utils.SuccessResponse(c, doc)
+}
+
+// GetUploadProgress 获取上传进度
+func (h *DocumentHandler) GetUploadProgress(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	
+	session, err := h.service.GetUploadProgress(sessionID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "Upload session not found")
+		return
+	}
+	
+	utils.SuccessResponse(c, session)
+}

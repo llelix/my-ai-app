@@ -4,3 +4,6 @@ backend/logs/*
 backend/cmd/server/logs/*
 */uploads/*
 backend/cmd/server/uploads/*
+backend/internal/ai/logs/app.log
+backend/internal/service/uploads/*
+.serena/*

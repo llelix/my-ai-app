@@ -10,6 +10,7 @@
 
 ## 后端技术栈
 - 保持KISS原则
+- 数据库的变更不需要migrantions 把最终的建表语句放在init.sql
 
 ### 核心框架与库
 - **Web框架**：Gin（高性能HTTP Web框架）

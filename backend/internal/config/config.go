@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
 )
 
@@ -11,6 +12,7 @@ type Config struct {
 	AI       AIConfig       `mapstructure:"ai"`
 	Log      LogConfig      `mapstructure:"log"`
 	CORS     CORSConfig     `mapstructure:"cors"`
+	S3       S3Config       `mapstructure:"s3"`
 }
 
 // ServerConfig 服务器配置
@@ -65,6 +67,45 @@ type CORSConfig struct {
 	AllowedHeaders []string `mapstructure:"allowed_headers"`
 }
 
+// S3Config S3兼容对象存储配置
+type S3Config struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	UseSSL          bool   `mapstructure:"use_ssl"`
+	Bucket          string `mapstructure:"bucket"`
+	Region          string `mapstructure:"region"`
+}
+
+// Validate 验证配置
+func (c *Config) Validate() error {
+	// 验证S3配置
+	if err := c.S3.Validate(); err != nil {
+		return fmt.Errorf("S3 configuration error: %w", err)
+	}
+	return nil
+}
+
+// Validate 验证S3配置
+func (s *S3Config) Validate() error {
+	if s.Endpoint == "" {
+		return fmt.Errorf("S3 endpoint is required")
+	}
+	if s.AccessKeyID == "" {
+		return fmt.Errorf("S3 access key ID is required")
+	}
+	if s.SecretAccessKey == "" {
+		return fmt.Errorf("S3 secret access key is required")
+	}
+	if s.Bucket == "" {
+		return fmt.Errorf("S3 bucket name is required")
+	}
+	if s.Region == "" {
+		return fmt.Errorf("S3 region is required")
+	}
+	return nil
+}
+
 // LoadConfig 加载配置
 func LoadConfig() (*Config, error) {
 	viper.SetConfigName(".env")
@@ -74,6 +115,9 @@ func LoadConfig() (*Config, error) {
 
 	// 设置默认值
 	setDefaults()
+
+	// 绑定环境变量
+	bindEnvVars()
 
 	// 环境变量自动覆盖
 	viper.AutomaticEnv()
@@ -91,7 +135,23 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	// 验证配置
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &config, nil
+}
+
+// bindEnvVars 绑定环境变量到配置键
+func bindEnvVars() {
+	// S3 environment variable bindings
+	viper.BindEnv("s3.endpoint", "S3_ENDPOINT")
+	viper.BindEnv("s3.access_key_id", "S3_ACCESS_KEY_ID")
+	viper.BindEnv("s3.secret_access_key", "S3_SECRET_ACCESS_KEY")
+	viper.BindEnv("s3.use_ssl", "S3_USE_SSL")
+	viper.BindEnv("s3.bucket", "S3_BUCKET")
+	viper.BindEnv("s3.region", "S3_REGION")
 }
 
 // setDefaults 设置默认配置值
@@ -123,4 +183,12 @@ func setDefaults() {
 	viper.SetDefault("cors.allowed_origins", []string{"http://localhost:3000", "http://localhost:5173"})
 	viper.SetDefault("cors.allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
 	viper.SetDefault("cors.allowed_headers", []string{"Content-Type", "Authorization"})
+
+	// S3 defaults (for MinIO local development)
+	viper.SetDefault("s3.endpoint", "localhost:9000")
+	viper.SetDefault("s3.access_key_id", "minioadmin")
+	viper.SetDefault("s3.secret_access_key", "minioadmin123")
+	viper.SetDefault("s3.use_ssl", false)
+	viper.SetDefault("s3.bucket", "ai-knowledge-files")
+	viper.SetDefault("s3.region", "us-east-1")
 }

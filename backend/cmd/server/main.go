@@ -60,21 +60,31 @@ func main() {
 		logger.GetLogger().WithField("error", err).Fatal("Failed to initialize database")
 	}
 
+	
+
 	// 自动迁移数据库
 	if err := database.AutoMigrate(); err != nil {
 		logger.GetLogger().WithField("error", err).Fatal("Failed to migrate database")
 	}
 
-	// 创建种子数据
-	if err := database.SeedDatabase(); err != nil {
-		logger.GetLogger().WithField("error", err).Fatal("Failed to seed database")
+	// 初始化MinIO客户端
+	minioClient, err := service.NewMinIOClient(&cfg.S3)
+	if err != nil {
+		logger.GetLogger().WithField("error", err).Fatal("Failed to initialize MinIO client")
 	}
+	logger.GetLogger().Info("MinIO client initialized successfully")
+
+	// 测试MinIO连接
+	if err := minioClient.TestConnection(); err != nil {
+		logger.GetLogger().WithField("error", err).Fatal("MinIO connection test failed")
+	}
+	logger.GetLogger().Info("MinIO connection test passed")
 
 	// 创建服务
 	vectorService := service.NewVectorService(&cfg.AI)
 
 	// 创建路由器
-	router := api.NewRouter(cfg, vectorService)
+	router := api.NewRouter(cfg, vectorService, minioClient)
 	engine := router.SetupRoutes()
 
 	// 创建HTTP服务器

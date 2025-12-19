@@ -29,13 +29,16 @@ type Router struct {
 }
 
 // NewRouter 创建新的路由器
-func NewRouter(config *config.Config, vectorService service.VectorService) *Router {
+func NewRouter(config *config.Config, vectorService service.VectorService, minioClient *service.MinIOClient) *Router {
 	// 创建AI服务
 	aiService := ai.NewAIService(&config.AI)
 	aiService.SetVectorService(vectorService)
 
 	// 创建文档服务
 	documentService := service.NewDocumentService(database.GetDatabase())
+	if minioClient != nil {
+		documentService.SetMinIOClient(minioClient)
+	}
 
 	// 创建处理器
 	aiHandler := NewAIHandler()

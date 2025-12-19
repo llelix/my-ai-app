@@ -6,11 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
 	"ai-knowledge-app/internal/config"
 	"ai-knowledge-app/internal/models"
-
-	"github.com/pgvector/pgvector-go"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -138,6 +135,8 @@ func AutoMigrate() error {
 		&models.KnowledgeTag{},
 		&models.QueryHistory{},
 		&models.Document{},
+		&models.DocumentChunk{},
+		&models.UploadSession{},
 	}
 
 	// 执行迁移
@@ -151,140 +150,13 @@ func AutoMigrate() error {
 	return nil
 }
 
-// SeedDatabase 初始化种子数据
-func SeedDatabase() error {
-	if DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
 
-	// 检查是否已有数据
-	var count int64
-	if err := DB.Model(&models.Category{}).Count(&count).Error; err != nil {
-		return err
-	}
-
-	// 如果已有数据，跳过种子数据创建
-	if count > 0 {
-		log.Println("Database already has data, skipping seed")
-		return nil
-	}
-
-	// 创建默认分类
-	categories := []models.Category{
-		{
-			Name:        "技术",
-			Description: "编程、开发相关技术知识",
-			Color:       "#1890ff",
-			Icon:        "code",
-			SortOrder:   1,
-		},
-		{
-			Name:        "产品",
-			Description: "产品设计、产品管理相关知识",
-			Color:       "#52c41a",
-			Icon:        "product",
-			SortOrder:   2,
-		},
-		{
-			Name:        "设计",
-			Description: "UI/UX设计相关知识",
-			Color:       "#fa8c16",
-			Icon:        "design",
-			SortOrder:   3,
-		},
-		{
-			Name:        "其他",
-			Description: "其他类型的知识",
-			Color:       "#722ed1",
-			Icon:        "more",
-			SortOrder:   4,
-		},
-	}
-
-	for _, category := range categories {
-		if err := DB.Create(&category).Error; err != nil {
-			return fmt.Errorf("failed to create category %s: %w", category.Name, err)
-		}
-	}
-
-	// 创建默认标签
-	tags := []models.Tag{
-		{Name: "Go", Color: "#00a8e6"},
-		{Name: "React", Color: "#61dafb"},
-		{Name: "TypeScript", Color: "#3178c6"},
-		{Name: "API设计", Color: "#ff6b6b"},
-		{Name: "数据库", Color: "#4ecdc4"},
-		{Name: "前端", Color: "#ff6b9d"},
-		{Name: "后端", Color: "#c44569"},
-		{Name: "算法", Color: "#f8b500"},
-	}
-
-	for _, tag := range tags {
-		if err := DB.Create(&tag).Error; err != nil {
-			return fmt.Errorf("failed to create tag %s: %w", tag.Name, err)
-		}
-	}
-
-	// 创建示例知识条目
-	sampleKnowledge := []models.Knowledge{
-		{
-			Title:         "Go语言基础",
-			Content:       "Go是Google开发的编程语言，具有简洁的语法、高效的并发性能和丰富的标准库。",
-			ContentVector: &pgvector.Vector{},
-			Summary:       "Go语言是一种现代化的编程语言，特别适合构建高性能的网络服务。",
-			CategoryID:    1, // 技术分类
-			Metadata: models.Metadata{
-				Author:     "浮浮酱",
-				Source:     "官方文档",
-				Language:   "zh",
-				Difficulty: "easy",
-				Keywords:   "Go,golang,编程语言",
-			},
-			IsPublished: true,
-		},
-		{
-			Title:         "React Hooks简介",
-			Content:       "React Hooks让你在不编写class的情况下使用state以及其他的React特性。",
-			ContentVector: &pgvector.Vector{},
-			Summary:       "Hooks是React 16.8推出的新特性，简化了组件逻辑的复用。",
-			CategoryID:    1, // 技术分类
-			Metadata: models.Metadata{
-				Author:     "浮浮酱",
-				Source:     "React文档",
-				Language:   "zh",
-				Difficulty: "medium",
-				Keywords:   "React,Hooks,前端框架",
-			},
-			IsPublished: true,
-		},
-	}
-
-	for _, knowledge := range sampleKnowledge {
-		if err := DB.Create(&knowledge).Error; err != nil {
-			return fmt.Errorf("failed to create knowledge %s: %w", knowledge.Title, err)
-		}
-
-		// 为示例知识添加标签
-		var goTag, reactTag models.Tag
-		DB.Where("name = ?", "Go").First(&goTag)
-		DB.Where("name = ?", "React").First(&reactTag)
-
-		if knowledge.Title == "Go语言基础" && goTag.ID != 0 {
-			DB.Model(&knowledge).Association("Tags").Append(&goTag)
-		}
-		if knowledge.Title == "React Hooks简介" && reactTag.ID != 0 {
-			DB.Model(&knowledge).Association("Tags").Append(&reactTag)
-		}
-	}
-
-	log.Println("Seed data created successfully")
-	return nil
-}
 
 // GetDatabase 获取数据库实例
 func GetDatabase() *gorm.DB {
 	return DB
 }
+
 
 // CloseDatabase 关闭数据库连接
 func CloseDatabase() error {
