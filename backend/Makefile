@@ -22,7 +22,7 @@ deps:
 
 # 生成Swagger文档
 swagger:
-	swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal
+	swag init -g ./cmd/server/main.go -o ./docs --parseDependency --parseInternal --quiet
 
 # 启动开发服务器
 dev: swagger

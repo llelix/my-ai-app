@@ -9,6 +9,7 @@
 - **AI集成**：OpenAI兼容API（OpenAI、Claude、本地模型）
 
 ## 后端技术栈
+- 保持KISS原则
 
 ### 核心框架与库
 - **Web框架**：Gin（高性能HTTP Web框架）

@@ -34,9 +34,10 @@ const DocumentManagement: React.FC = () => {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const docs = await documentService.list();
-      setDocuments(docs);
+      const response = await documentService.getDocuments();
+      setDocuments(response.data?.items || []);
     } catch (error) {
+      console.error('加载文档失败:', error);
       message.error('加载文档失败');
     } finally {
       setLoading(false);
@@ -62,7 +63,8 @@ const DocumentManagement: React.FC = () => {
         }
       } else {
         // 使用传统上传
-        doc = await documentService.upload(file);
+        const response = await documentService.upload(file);
+        doc = response.data!;
         message.success('上传成功');
       }
       
@@ -87,7 +89,7 @@ const DocumentManagement: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await documentService.delete(id);
+      await documentService.deleteDocument(id);
       message.success('删除成功');
       loadDocuments();
     } catch (error) {

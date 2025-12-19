@@ -1,35 +1,10 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../types';
-
-interface Document {
-  id: number;
-  name: string;
-  original_name: string;
-  file_path: string;
-  file_size: number;
-  file_hash: string;
-  mime_type: string;
-  extension: string;
-  description: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface UploadSession {
-  id: string;
-  file_name: string;
-  file_size: number;
-  file_hash: string;
-  chunk_size: number;
-  total_chunks: number;
-  uploaded_size: number;
-  temp_dir: string;
-  status: string;
-  expires_at: string;
-  created_at: string;
-  updated_at: string;
-}
+import { apiService } from './api';
+import type {
+  Document,
+  UploadSession,
+  PaginationRequest,
+  PaginationResponse
+} from '../types';
 
 // 计算文件SHA256哈希
 async function calculateFileHash(file: File): Promise<string> {
@@ -39,60 +14,61 @@ async function calculateFileHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export const documentService = {
+export class DocumentService {
   // 检查文件是否存在（秒传）
-  async checkFile(hash: string, size: number): Promise<{ exists: boolean; document?: Document }> {
-    const response = await axios.get(`${API_BASE_URL}/documents/check`, {
+  async checkFile(hash: string, size: number) {
+    return apiService.get<{ exists: boolean; document?: Document }>('/documents/check', {
       params: { hash, size }
     });
-    return response.data;
-  },
+  }
 
   // 初始化分片上传
-  async initUpload(fileName: string, fileSize: number, fileHash: string): Promise<UploadSession> {
-    const response = await axios.post(`${API_BASE_URL}/documents/init`, {
+  async initUpload(fileName: string, fileSize: number, fileHash: string) {
+    return apiService.post<UploadSession>('/documents/init', {
       file_name: fileName,
       file_size: fileSize,
       file_hash: fileHash
     });
-    return response.data.data;
-  },
+  }
 
   // 上传分片
-  async uploadChunk(sessionId: string, chunkIndex: number, chunkData: ArrayBuffer): Promise<void> {
-    await axios.post(`${API_BASE_URL}/documents/chunk/${sessionId}/${chunkIndex}`, chunkData, {
+  async uploadChunk(sessionId: string, chunkIndex: number, chunkData: ArrayBuffer) {
+    return apiService.getInstance().post(`/documents/chunk/${sessionId}/${chunkIndex}`, chunkData, {
       headers: { 'Content-Type': 'application/octet-stream' }
     });
-  },
+  }
 
   // 完成上传
-  async completeUpload(sessionId: string): Promise<Document> {
-    const response = await axios.post(`${API_BASE_URL}/documents/complete/${sessionId}`);
-    return response.data.data;
-  },
+  async completeUpload(sessionId: string) {
+    return apiService.post<Document>(`/documents/complete/${sessionId}`);
+  }
 
   // 获取上传进度
-  async getUploadProgress(sessionId: string): Promise<UploadSession> {
-    const response = await axios.get(`${API_BASE_URL}/documents/progress/${sessionId}`);
-    return response.data.data;
-  },
+  async getUploadProgress(sessionId: string) {
+    return apiService.get<UploadSession>(`/documents/progress/${sessionId}`);
+  }
 
   // 分片上传文件
   async uploadWithResume(
     file: File, 
     onProgress?: (progress: number) => void
-  ): Promise<Document> {
+  ) {
     const fileHash = await calculateFileHash(file);
     
     // 检查是否可以秒传
     const checkResult = await this.checkFile(fileHash, file.size);
-    if (checkResult.exists && checkResult.document) {
+    if (checkResult.data?.exists && checkResult.data?.document) {
       onProgress?.(100);
-      return checkResult.document;
+      return checkResult.data.document;
     }
 
     // 初始化上传会话
-    const session = await this.initUpload(file.name, file.size, fileHash);
+    const sessionResult = await this.initUpload(file.name, file.size, fileHash);
+    const session = sessionResult.data;
+    if (!session) {
+      throw new Error('Failed to initialize upload session');
+    }
+    
     const chunkSize = session.chunk_size;
 
     // 分片上传
@@ -109,41 +85,72 @@ export const documentService = {
     }
 
     // 完成上传
-    return await this.completeUpload(session.id);
-  },
+    const result = await this.completeUpload(session.id);
+    if (!result.data) {
+      throw new Error('Failed to complete upload');
+    }
+    return result.data;
+  }
 
   // 传统上传方法
-  async upload(file: File): Promise<Document> {
+  async upload(file: File, description?: string) {
     const formData = new FormData();
     formData.append('file', file);
+    if (description) {
+      formData.append('description', description);
+    }
     
-    const response = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data.data;
-  },
-
-  async list(): Promise<Document[]> {
-    const response = await axios.get(`${API_BASE_URL}/documents`);
-    return response.data.data;
-  },
-
-  async get(id: number): Promise<Document> {
-    const response = await axios.get(`${API_BASE_URL}/documents/${id}`);
-    return response.data.data;
-  },
-
-  async delete(id: number): Promise<void> {
-    await axios.delete(`${API_BASE_URL}/documents/${id}`);
-  },
-
-  async updateDescription(id: number, description: string): Promise<void> {
-    await axios.put(`${API_BASE_URL}/documents/${id}/description`, { description });
-  },
-
-  getDownloadUrl(id: number): string {
-    return `${API_BASE_URL}/documents/${id}/download`;
+    return apiService.upload<Document>('/documents/upload', formData);
   }
-};
 
-export type { Document, UploadSession };
+  // 获取文档列表
+  async getDocuments(params?: PaginationRequest & {
+    status?: string;
+    mime_type?: string;
+  }) {
+    return apiService.get<PaginationResponse<Document>>('/documents', { params });
+  }
+
+  // 获取单个文档
+  async getDocument(id: number) {
+    return apiService.get<Document>(`/documents/${id}`);
+  }
+
+  // 删除文档
+  async deleteDocument(id: number) {
+    return apiService.delete(`/documents/${id}`);
+  }
+
+  // 更新文档描述
+  async updateDescription(id: number, description: string) {
+    return apiService.put(`/documents/${id}/description`, { description });
+  }
+
+  // 获取下载链接
+  getDownloadUrl(id: number): string {
+    return `/api/v1/documents/${id}/download`;
+  }
+
+  // 下载文档
+  async downloadDocument(id: number, filename?: string) {
+    return apiService.download(`/documents/${id}/download`, filename);
+  }
+
+  // 批量删除文档
+  async batchDelete(ids: number[]) {
+    return apiService.post('/documents/batch-delete', { ids });
+  }
+
+  // 获取文档统计
+  async getDocumentStats() {
+    return apiService.get<{
+      total_count: number;
+      total_size: number;
+      by_type: Array<{ mime_type: string; count: number; size: number }>;
+      by_status: Array<{ status: string; count: number }>;
+    }>('/documents/stats');
+  }
+}
+
+// 创建服务实例
+export const documentService = new DocumentService();

@@ -2,6 +2,7 @@
 export { default as apiService, healthCheck } from './api';
 export { knowledgeService } from './knowledge';
 export { aiService } from './ai';
+export { documentService } from './documentService';
 
 // 分类服务
 import { apiService } from './api';

@@ -2,4 +2,5 @@ backend/data/*
 backend/logs/*
 *.env
 backend/cmd/server/logs/*
-
+*/uploads/*
+backend/cmd/server/uploads/*

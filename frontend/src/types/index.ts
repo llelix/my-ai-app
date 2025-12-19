@@ -223,6 +223,38 @@ export interface UploadFile {
   url: string;
 }
 
+// 文档相关类型
+export interface Document {
+  id: number;
+  name: string;
+  original_name: string;
+  file_path: string;
+  file_size: number;
+  file_hash: string;
+  mime_type: string;
+  extension: string;
+  description: string;
+  status: 'uploading' | 'processing' | 'completed' | 'failed';
+  created_at: string;
+  updated_at: string;
+}
+
+// 上传会话类型
+export interface UploadSession {
+  id: string;
+  file_name: string;
+  file_size: number;
+  file_hash: string;
+  chunk_size: number;
+  total_chunks: number;
+  uploaded_size: number;
+  temp_dir: string;
+  status: 'active' | 'completed' | 'failed' | 'expired';
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // 反馈类型
 export interface FeedbackRequest {
   query_id: number;
