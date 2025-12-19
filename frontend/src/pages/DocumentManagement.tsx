@@ -8,8 +8,7 @@ import {
   Input, 
   Space,
   Popconfirm,
-  Progress,
-  Switch
+  Progress
 } from 'antd';
 import { 
   UploadOutlined, 
@@ -17,7 +16,8 @@ import {
   DeleteOutlined, 
   EditOutlined 
 } from '@ant-design/icons';
-import { documentService, type Document } from '../services/documentService';
+import { documentService } from '../services/documentService';
+import type { Document } from '../types';
 
 const DocumentManagement: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -25,7 +25,6 @@ const DocumentManagement: React.FC = () => {
   const [editModal, setEditModal] = useState<{ visible: boolean; document?: Document }>({ visible: false });
   const [description, setDescription] = useState('');
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
-  const [useChunkedUpload, setUseChunkedUpload] = useState(true);
 
   useEffect(() => {
     loadDocuments();
@@ -35,7 +34,9 @@ const DocumentManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await documentService.getDocuments();
-      setDocuments(response.data?.items || []);
+      // 根据实际API返回结构调整
+      const documentsData = response.data?.items || response.data || [];
+      setDocuments(Array.isArray(documentsData) ? documentsData : []);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档失败');
@@ -46,13 +47,12 @@ const DocumentManagement: React.FC = () => {
 
   const handleUpload = async (file: File) => {
     const fileKey = `${file.name}_${file.size}`;
+    const fileSizeMB = file.size / (1024 * 1024); // 转换为MB
     
     try {
-      let doc: Document;
-      
-      if (useChunkedUpload) {
-        // 使用分片上传（支持断点续传和秒传）
-        doc = await documentService.uploadWithResume(file, (progress) => {
+      if (fileSizeMB > 50) {
+        // 文件大于50MB，使用分片上传（支持断点续传和秒传）
+        await documentService.uploadWithResume(file, (progress) => {
           setUploadProgress(prev => ({ ...prev, [fileKey]: progress }));
         });
         
@@ -62,9 +62,8 @@ const DocumentManagement: React.FC = () => {
           message.success('上传成功');
         }
       } else {
-        // 使用传统上传
-        const response = await documentService.upload(file);
-        doc = response.data!;
+        // 文件小于等于50MB，使用传统上传
+        await documentService.upload(file);
         message.success('上传成功');
       }
       
@@ -171,7 +170,7 @@ const DocumentManagement: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      render: (_, record: Document) => (
+      render: (_: any, record: Document) => (
         <Space>
           <Button
             icon={<DownloadOutlined />}
@@ -200,26 +199,14 @@ const DocumentManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Upload
-            beforeUpload={handleUpload}
-            showUploadList={false}
-            multiple
-          >
-            <Button icon={<UploadOutlined />}>上传文档</Button>
-          </Upload>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>分片上传:</span>
-            <Switch 
-              checked={useChunkedUpload} 
-              onChange={setUseChunkedUpload}
-              checkedChildren="开启"
-              unCheckedChildren="关闭"
-            />
-          </div>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <Upload
+          beforeUpload={handleUpload}
+          showUploadList={false}
+          multiple
+        >
+          <Button icon={<UploadOutlined />}>上传文档</Button>
+        </Upload>
       </div>
 
       {/* 上传进度显示 */}
