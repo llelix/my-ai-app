@@ -108,15 +108,10 @@ npm run lint
 - 实现无缝的全栈开发体验
 
 ## 数据库设置
-
-### SQLite（开发环境）
-- 自动在 `./data/app.db` 创建数据库
-- 无需额外设置
-
 ### PostgreSQL（生产环境）
 - 使用提供的 `docker-compose.yml` 启动本地PostgreSQL + pgvector
 - 需要pgvector扩展进行向量相似性搜索
-- 自动迁移处理模式创建
+- 自动迁移使用GORM的内置方法
 
 ## 构建与部署
 
