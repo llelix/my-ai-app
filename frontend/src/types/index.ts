@@ -287,3 +287,6 @@ export const DIFFICULTY_OPTIONS = [
   { label: '中等', value: 'medium' },
   { label: '困难', value: 'hard' },
 ];
+
+// 导出预处理相关类型
+export * from './processing';

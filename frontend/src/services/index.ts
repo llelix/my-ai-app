@@ -4,6 +4,7 @@ export { knowledgeService } from './knowledge';
 export { aiService } from './ai';
 export { documentService } from './documentService';
 export { documentProcessingService } from './documentProcessingService';
+export { processingService } from './processingService';
 
 // 标签服务
 import { apiService } from './api';
