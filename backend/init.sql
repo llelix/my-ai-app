@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS knowledges (
     summary TEXT,
     is_published BOOLEAN DEFAULT true,
     view_count INTEGER DEFAULT 0,
-    content_vector vector(1536),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE

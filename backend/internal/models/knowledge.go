@@ -3,22 +3,20 @@ package models
 import (
 	"time"
 
-	"github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
 )
 
 // Knowledge 知识条目模型
 type Knowledge struct {
-	ID            uint            `json:"id" gorm:"primaryKey"`
-	Title         string          `json:"title" gorm:"not null;size:255"`
-	Content       string          `json:"content" gorm:"type:text"`
-	Summary       string          `json:"summary" gorm:"type:text"`
-	IsPublished   bool            `json:"is_published" gorm:"default:true"`
-	ViewCount     int             `json:"view_count" gorm:"default:0"`
-	ContentVector pgvector.Vector `json:"-" gorm:"type:vector(1536)"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt  `json:"-" gorm:"index"`
+	ID          uint           `json:"id" gorm:"primaryKey"`
+	Title       string         `json:"title" gorm:"not null;size:255"`
+	Content     string         `json:"content" gorm:"type:text"`
+	Summary     string         `json:"summary" gorm:"type:text"`
+	IsPublished bool           `json:"is_published" gorm:"default:true"`
+	ViewCount   int            `json:"view_count" gorm:"default:0"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 // Tag 标签模型

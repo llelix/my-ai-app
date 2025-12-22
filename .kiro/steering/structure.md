@@ -19,9 +19,7 @@ backend/
 ├── cmd/
 │   └── server/           # 应用程序入口点
 │       ├── main.go       # 主应用程序入口
-│       ├── logs/         # 应用程序日志
-│       ├── temp/         # 临时文件
-│       └── uploads/      # 文件上传存储
+│       └── logs/         # 应用程序日志
 ├── internal/             # 私有应用程序代码
 │   ├── api/             # HTTP处理器和路由
 │   ├── ai/              # AI服务集成
