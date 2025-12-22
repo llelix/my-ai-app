@@ -36,24 +36,30 @@ func NewKnowledgeHandler(vectorService service.VectorService) *KnowledgeHandler 
 
 // CreateKnowledgeRequest 创建知识请求
 type CreateKnowledgeRequest struct {
-	Title       string          `json:"title" binding:"required,min=1,max=255"`
-	Content     string          `json:"content" binding:"required"`
-	Summary     string          `json:"summary"`
-	CategoryID  uint            `json:"category_id"`
-	Tags        []string        `json:"tags"`
-	Metadata    models.Metadata `json:"metadata"`
-	IsPublished bool            `json:"is_published"`
+	Title       string   `json:"title" binding:"required,min=1,max=255"`
+	Content     string   `json:"content" binding:"required"`
+	Summary     string   `json:"summary"`
+	Tags        []string `json:"tags"`
+	Author      string   `json:"author"`
+	Source      string   `json:"source"`
+	Language    string   `json:"language"`
+	Difficulty  string   `json:"difficulty"`
+	Keywords    string   `json:"keywords"`
+	IsPublished bool     `json:"is_published"`
 }
 
 // UpdateKnowledgeRequest 更新知识请求
 type UpdateKnowledgeRequest struct {
-	Title       string          `json:"title" binding:"omitempty,min=1,max=255"`
-	Content     string          `json:"content"`
-	Summary     string          `json:"summary"`
-	CategoryID  uint            `json:"category_id"`
-	Tags        []string        `json:"tags"`
-	Metadata    models.Metadata `json:"metadata"`
-	IsPublished *bool           `json:"is_published"`
+	Title       string   `json:"title" binding:"omitempty,min=1,max=255"`
+	Content     string   `json:"content"`
+	Summary     string   `json:"summary"`
+	Tags        []string `json:"tags"`
+	Author      string   `json:"author"`
+	Source      string   `json:"source"`
+	Language    string   `json:"language"`
+	Difficulty  string   `json:"difficulty"`
+	Keywords    string   `json:"keywords"`
+	IsPublished *bool    `json:"is_published"`
 }
 
 // GetKnowledges 获取知识列表
@@ -77,7 +83,10 @@ func (h *KnowledgeHandler) GetKnowledges(c *gin.Context) {
 	}
 
 	// 构建查询
-	query := db.Model(&models.Knowledge{}).Preload("Category").Preload("Tags")
+	query := db.Model(&models.Knowledge{})
+
+	// 只在有关联数据时才预加载
+	// query = query.Preload("Tags") // 暂时注释掉标签预加载
 
 	// 搜索条件
 	if pagination.Search != "" {
@@ -89,13 +98,6 @@ func (h *KnowledgeHandler) GetKnowledges(c *gin.Context) {
 	// 只显示已发布的（前端可以指定是否包含未发布的）
 	if !utils.ContainsString([]string{"true", "1"}, c.Query("include_unpublished")) {
 		query = query.Where("is_published = ?", true)
-	}
-
-	// 分类过滤
-	if categoryIDStr := c.Query("category_id"); categoryIDStr != "" {
-		if categoryID, err := strconv.ParseUint(categoryIDStr, 10, 32); err == nil {
-			query = query.Where("category_id = ?", categoryID)
-		}
 	}
 
 	// 标签过滤
@@ -156,7 +158,7 @@ func (h *KnowledgeHandler) GetKnowledge(c *gin.Context) {
 	id := c.Param("id")
 
 	var knowledge models.Knowledge
-	if err := db.Preload("Category").Preload("Tags").First(&knowledge, id).Error; err != nil {
+	if err := db.First(&knowledge, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.ErrorResponse(c, http.StatusNotFound, "Knowledge not found")
 			return
@@ -187,24 +189,12 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 		return
 	}
 
-	// 验证分类是否存在
-	if req.CategoryID > 0 {
-		var category models.Category
-		if err := db.First(&category, req.CategoryID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid category")
-			return
-		}
-	}
-
 	// 创建知识
 	knowledge := models.Knowledge{
-		Title:         utils.CleanText(req.Title),
-		Content:       utils.CleanText(req.Content),
-		ContentVector: nil, // 初始为空，后续异步生成
-		Summary:       utils.CleanText(req.Summary),
-		CategoryID:    req.CategoryID,
-		Metadata:      req.Metadata,
-		IsPublished:   req.IsPublished,
+		Title:       utils.CleanText(req.Title),
+		Content:     utils.CleanText(req.Content),
+		Summary:     utils.CleanText(req.Summary),
+		IsPublished: req.IsPublished,
 	}
 
 	// 如果没有提供摘要，自动生成
@@ -231,16 +221,16 @@ func (h *KnowledgeHandler) CreateKnowledge(c *gin.Context) {
 		}
 	}(knowledge.ID)
 
-	// 处理标签
-	if len(req.Tags) > 0 {
-		if err := h.attachTags(&knowledge, req.Tags); err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to attach tags: %v", err))
-			return
-		}
-	}
+	// 处理标签 - 暂时注释掉
+	// if len(req.Tags) > 0 {
+	// 	if err := h.attachTags(&knowledge, req.Tags); err != nil {
+	// 		utils.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to attach tags: %v", err))
+	// 		return
+	// 	}
+	// }
 
 	// 重新加载完整的知识对象
-	db.Preload("Category").Preload("Tags").First(&knowledge, knowledge.ID)
+	db.First(&knowledge, knowledge.ID)
 
 	utils.SuccessResponse(c, knowledge)
 }
@@ -277,16 +267,6 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 		return
 	}
 
-	// 验证分类是否存在
-	if req.CategoryID > 0 {
-		var category models.Category
-		if err := db.First(&category, req.CategoryID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid category")
-			return
-		}
-		knowledge.CategoryID = req.CategoryID
-	}
-
 	// 更新字段
 	if req.Title != "" {
 		knowledge.Title = utils.CleanText(req.Title)
@@ -306,23 +286,6 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 	}
 	if req.IsPublished != nil {
 		knowledge.IsPublished = *req.IsPublished
-	}
-
-	// 更新元数据
-	if req.Metadata.Author != "" {
-		knowledge.Metadata.Author = req.Metadata.Author
-	}
-	if req.Metadata.Source != "" {
-		knowledge.Metadata.Source = req.Metadata.Source
-	}
-	if req.Metadata.Language != "" {
-		knowledge.Metadata.Language = req.Metadata.Language
-	}
-	if req.Metadata.Difficulty != "" {
-		knowledge.Metadata.Difficulty = req.Metadata.Difficulty
-	}
-	if req.Metadata.Keywords != "" {
-		knowledge.Metadata.Keywords = req.Metadata.Keywords
 	}
 
 	// 保存更新
@@ -345,19 +308,19 @@ func (h *KnowledgeHandler) UpdateKnowledge(c *gin.Context) {
 		}
 	}
 
-	// 处理标签
-	if len(req.Tags) > 0 {
-		// 清除现有标签关联
-		db.Model(&knowledge).Association("Tags").Clear()
-		// 添加新标签
-		if err := h.attachTags(&knowledge, req.Tags); err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to attach tags")
-			return
-		}
-	}
+	// 处理标签 - 暂时注释掉
+	// if len(req.Tags) > 0 {
+	// 	// 清除现有标签关联
+	// 	db.Model(&knowledge).Association("Tags").Clear()
+	// 	// 添加新标签
+	// 	if err := h.attachTags(&knowledge, req.Tags); err != nil {
+	// 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to attach tags")
+	// 		return
+	// 	}
+	// }
 
 	// 重新加载完整的知识对象
-	db.Preload("Category").Preload("Tags").First(&knowledge, knowledge.ID)
+	db.First(&knowledge, knowledge.ID)
 
 	utils.SuccessResponse(c, knowledge)
 }
@@ -415,10 +378,8 @@ func (h *KnowledgeHandler) SearchKnowledges(c *gin.Context) {
 	// 构建搜索查询
 	searchTerm := "%" + strings.ToLower(query) + "%"
 	dbQuery := db.Model(&models.Knowledge{}).
-		Preload("Category").
-		Preload("Tags").
-		Where("(LOWER(title) LIKE ? OR LOWER(content) LIKE ? OR LOWER(summary) LIKE ? OR LOWER(metadata.keywords) LIKE ?) AND is_published = ?",
-			searchTerm, searchTerm, searchTerm, searchTerm, true)
+		Where("(LOWER(title) LIKE ? OR LOWER(content) LIKE ? OR LOWER(summary) LIKE ?) AND is_published = ?",
+			searchTerm, searchTerm, searchTerm, true)
 
 	// 获取总数
 	var total int64
@@ -470,46 +431,29 @@ func (h *KnowledgeHandler) GetRelatedKnowledges(c *gin.Context) {
 		limit = 5
 	}
 
-	// 基于分类和标签查找相关知识
+	// 基于标签查找相关知识
 	var relatedKnowledges []models.Knowledge
 
-	// 同分类的知识
-	db.Preload("Category").Preload("Tags").
-		Where("category_id = ? AND id != ? AND is_published = ?",
-			knowledge.CategoryID, knowledge.ID, true).
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&relatedKnowledges)
+	// 获取当前知识的标签ID（通过关联表查询）
+	var tagIDs []uint
+	db.Table("knowledge_tags").
+		Where("knowledge_id = ?", knowledge.ID).
+		Pluck("tag_id", &tagIDs)
 
-	// 如果同分类的知识不够，添加同标签的知识
-	if len(relatedKnowledges) < limit {
-		var tagIDs []uint
-		for _, tag := range knowledge.Tags {
-			tagIDs = append(tagIDs, tag.ID)
-		}
-
-		if len(tagIDs) > 0 {
-			var tagKnowledges []models.Knowledge
-			db.Table("knowledges").
-				Select("knowledges.*").
-				Joins("INNER JOIN knowledge_tags ON knowledges.id = knowledge_tags.knowledge_id").
-				Where("knowledge_tags.tag_id IN ? AND knowledges.id != ? AND knowledges.id NOT IN (?) AND knowledges.is_published = ?",
-					tagIDs, knowledge.ID,
-					func() []uint {
-						existingIDs := []uint{knowledge.ID}
-						for _, k := range relatedKnowledges {
-							existingIDs = append(existingIDs, k.ID)
-						}
-						return existingIDs
-					}(), true).
-				Order("created_at DESC").
-				Limit(limit - len(relatedKnowledges)).
-				Scan(&tagKnowledges)
-
-			relatedKnowledges = append(relatedKnowledges, tagKnowledges...)
-		}
+	// 如果有标签，查找同标签的知识
+	if len(tagIDs) > 0 {
+		db.Table("knowledges").
+			Select("knowledges.*").
+			Joins("INNER JOIN knowledge_tags ON knowledges.id = knowledge_tags.knowledge_id").
+			Where("knowledge_tags.tag_id IN ? AND knowledges.id != ? AND knowledges.is_published = ?",
+				tagIDs, knowledge.ID, true).
+			Group("knowledges.id").
+			Order("created_at DESC").
+			Limit(limit).
+			Find(&relatedKnowledges)
 	}
 
+	// 如果同分类的知识不够，添加同标签的知识
 	utils.SuccessResponse(c, relatedKnowledges)
 }
 

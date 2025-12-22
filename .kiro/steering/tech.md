@@ -5,7 +5,7 @@
 前后端分离的全栈应用：
 - **后端**：基于Go的REST API服务器
 - **前端**：React SPA + TypeScript
-- **数据库**：SQLite（开发环境）/ PostgreSQL（生产环境）+ pgvector扩展
+- **数据库**：PostgreSQL + pgvector扩展
 - **AI集成**：OpenAI兼容API（OpenAI、Claude、本地模型）
 
 ## 后端技术栈
@@ -23,7 +23,7 @@
 
 ### 关键依赖
 - `github.com/gin-gonic/gin` - Web框架
-- `gorm.io/gorm` - ORM，支持SQLite/PostgreSQL驱动
+- `gorm.io/gorm` - ORM，支持PostgreSQL驱动
 - `github.com/spf13/viper` - 配置管理
 - `github.com/sirupsen/logrus` - 结构化日志
 - `github.com/tmc/langchaingo` - LLM集成
@@ -60,7 +60,7 @@ cd backend
 go mod tidy
 
 # 运行开发服务器
-cd cmd/server && go run .
+make dev
 
 # 生产环境构建
 go build -o ai-knowledge-app cmd/server/main.go
@@ -96,19 +96,23 @@ npm run lint
 ## 环境配置
 
 ### 后端环境变量
-- 复制 `.env.example` 到 `.env` 并配置：
-  - `SERVER_PORT=8080` - API服务器端口
-  - `DB_TYPE=sqlite|postgres` - 数据库类型
-  - `OPENAI_API_KEY` - AI服务API密钥
-  - `OPENAI_BASE_URL` - AI服务端点
-  - `OPENAI_MODEL` - 使用的AI模型
+- 复制 `config.example.yml` 到 `config.yml` 并配置：
+  - `server.port: 8080` - API服务器端口
+  - `database.host` - PostgreSQL主机地址
+  - `database.port` - PostgreSQL端口
+  - `database.user` - 数据库用户名
+  - `database.password` - 数据库密码
+  - `database.dbname` - 数据库名称
+  - `ai.openai.api_key` - AI服务API密钥
+  - `ai.openai.base_url` - AI服务端点
+  - `ai.openai.model` - 使用的AI模型
 
 ### 开发代理
 - 前端Vite开发服务器将 `/api` 请求代理到 `http://localhost:8080`
 - 实现无缝的全栈开发体验
 
 ## 数据库设置
-### PostgreSQL（生产环境）
+### PostgreSQL
 - 使用提供的 `docker-compose.yml` 启动本地PostgreSQL + pgvector
 - 需要pgvector扩展进行向量相似性搜索
 - 自动迁移使用GORM的内置方法

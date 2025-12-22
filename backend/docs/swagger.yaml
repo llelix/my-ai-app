@@ -1,49 +1,7 @@
 basePath: /api/v1
 definitions:
-  ai-knowledge-app_internal_models.Category:
-    properties:
-      children:
-        items:
-          $ref: '#/definitions/ai-knowledge-app_internal_models.Category'
-        type: array
-      color:
-        description: 十六进制颜色代码
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      icon:
-        type: string
-      id:
-        type: integer
-      is_active:
-        type: boolean
-      knowledges:
-        items:
-          $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
-        type: array
-      name:
-        type: string
-      parent:
-        allOf:
-        - $ref: '#/definitions/ai-knowledge-app_internal_models.Category'
-        description: 关联
-      parent_id:
-        type: integer
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
   ai-knowledge-app_internal_models.Knowledge:
     properties:
-      category:
-        allOf:
-        - $ref: '#/definitions/ai-knowledge-app_internal_models.Category'
-        description: 关联
-      category_id:
-        type: integer
       content:
         type: string
       created_at:
@@ -52,89 +10,13 @@ definitions:
         type: integer
       is_published:
         type: boolean
-      metadata:
-        $ref: '#/definitions/ai-knowledge-app_internal_models.Metadata'
-      query_history:
-        items:
-          $ref: '#/definitions/ai-knowledge-app_internal_models.QueryHistory'
-        type: array
       summary:
         type: string
-      tags:
-        items:
-          $ref: '#/definitions/ai-knowledge-app_internal_models.Tag'
-        type: array
       title:
         type: string
       updated_at:
         type: string
       view_count:
-        type: integer
-    type: object
-  ai-knowledge-app_internal_models.Metadata:
-    properties:
-      author:
-        type: string
-      difficulty:
-        description: easy, medium, hard
-        type: string
-      keywords:
-        type: string
-      language:
-        type: string
-      source:
-        type: string
-      word_count:
-        type: integer
-    type: object
-  ai-knowledge-app_internal_models.QueryHistory:
-    properties:
-      created_at:
-        type: string
-      duration:
-        description: 毫秒
-        type: integer
-      error_message:
-        type: string
-      id:
-        type: integer
-      is_success:
-        type: boolean
-      knowledge:
-        allOf:
-        - $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
-        description: 关联
-      knowledge_id:
-        type: integer
-      model:
-        type: string
-      query:
-        type: string
-      response:
-        type: string
-      tokens:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  ai-knowledge-app_internal_models.Tag:
-    properties:
-      color:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      knowledges:
-        description: 关联
-        items:
-          $ref: '#/definitions/ai-knowledge-app_internal_models.Knowledge'
-        type: array
-      name:
-        type: string
-      updated_at:
-        type: string
-      usage_count:
         type: integer
     type: object
   ai-knowledge-app_pkg_utils.PaginationResponse:
@@ -159,14 +41,20 @@ definitions:
     type: object
   internal_api.CreateKnowledgeRequest:
     properties:
-      category_id:
-        type: integer
+      author:
+        type: string
       content:
+        type: string
+      difficulty:
         type: string
       is_published:
         type: boolean
-      metadata:
-        $ref: '#/definitions/ai-knowledge-app_internal_models.Metadata'
+      keywords:
+        type: string
+      language:
+        type: string
+      source:
+        type: string
       summary:
         type: string
       tags:
@@ -226,14 +114,20 @@ definitions:
     type: object
   internal_api.UpdateKnowledgeRequest:
     properties:
-      category_id:
-        type: integer
+      author:
+        type: string
       content:
+        type: string
+      difficulty:
         type: string
       is_published:
         type: boolean
-      metadata:
-        $ref: '#/definitions/ai-knowledge-app_internal_models.Metadata'
+      keywords:
+        type: string
+      language:
+        type: string
+      source:
+        type: string
       summary:
         type: string
       tags:
@@ -289,26 +183,6 @@ paths:
       summary: AI智能查询
       tags:
       - ai
-  /categories:
-    get:
-      consumes:
-      - application/json
-      description: 获取所有分类，支持按状态过滤
-      parameters:
-      - description: 是否激活
-        in: query
-        name: is_active
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/ai-knowledge-app_pkg_utils.Response'
-      summary: 获取分类列表
-      tags:
-      - categories
   /health:
     get:
       consumes:

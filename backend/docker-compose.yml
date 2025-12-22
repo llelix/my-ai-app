@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
   minio:
@@ -27,7 +27,7 @@ services:
       - "9000:9000"  # MinIO API port
       - "9001:9001"  # MinIO Console port
     volumes:
-      - minio_data:/data
+      - ./data/minio_data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s

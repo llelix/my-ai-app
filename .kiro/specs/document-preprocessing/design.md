@@ -30,7 +30,7 @@
    - 处理错误和重试逻辑
 
 2. **MinerU集成模块 (MinerUProcessor)**
-   - 封装MinerU Python API调用
+   - 封装MinerU http API调用
    - 处理不同文档格式的转换
    - 管理转换配置和参数
 

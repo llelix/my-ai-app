@@ -96,9 +96,6 @@ const KnowledgeDetail: React.FC = () => {
                 {knowledge.title}
               </Title>
               <Space>
-                <Tag color={knowledge.category?.color || 'default'}>
-                  {knowledge.category?.name || '未分类'}
-                </Tag>
                 <Space size={4}>
                   <EyeOutlined />
                   <span>{knowledge.view_count}</span>
@@ -136,11 +133,6 @@ const KnowledgeDetail: React.FC = () => {
               </Tag>
             ))}
           </Space>
-          {knowledge.metadata.author && (
-            <div style={{ marginTop: 8, color: '#666' }}>
-              作者: {knowledge.metadata.author}
-            </div>
-          )}
         </div>
 
         {/* 摘要 */}
@@ -164,31 +156,6 @@ const KnowledgeDetail: React.FC = () => {
             ))}
           </div>
         </div>
-
-        {/* 额外信息 */}
-        {(knowledge.metadata.source || knowledge.metadata.keywords) && (
-          <>
-            <Divider />
-            <div>
-              <Title level={5}>元数据</Title>
-              {knowledge.metadata.source && (
-                <div style={{ marginBottom: 8 }}>
-                  <strong>来源:</strong> {knowledge.metadata.source}
-                </div>
-              )}
-              {knowledge.metadata.keywords && (
-                <div style={{ marginBottom: 8 }}>
-                  <strong>关键词:</strong> {knowledge.metadata.keywords}
-                </div>
-              )}
-              {knowledge.metadata.difficulty && (
-                <div style={{ marginBottom: 8 }}>
-                  <strong>难度:</strong> {knowledge.metadata.difficulty}
-                </div>
-              )}
-            </div>
-          </>
-        )}
       </Card>
     </div>
   );

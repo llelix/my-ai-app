@@ -80,7 +80,6 @@ export class AIService {
 
   // 智能搜索（结合AI的增强搜索）
   async smartSearch(query: string, filters?: {
-    category_id?: number;
     tags?: string[];
     date_range?: [string, string];
   }) {

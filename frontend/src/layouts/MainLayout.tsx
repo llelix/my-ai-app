@@ -40,11 +40,6 @@ const menuItems = [
     label: '知识库',
   },
   {
-    key: ROUTES.CATEGORIES,
-    icon: <FolderOutlined />,
-    label: '分类管理',
-  },
-  {
     key: ROUTES.TAGS,
     icon: <TagsOutlined />,
     label: '标签管理',

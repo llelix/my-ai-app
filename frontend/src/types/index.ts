@@ -29,23 +29,18 @@ export interface Knowledge {
   title: string;
   content: string;
   summary: string;
-  category_id: number;
   tags: Tag[];
-  metadata: Metadata;
   is_published: boolean;
   view_count: number;
   created_at: string;
   updated_at: string;
-  category?: Category;
 }
 
 export interface CreateKnowledgeRequest {
   title: string;
   content: string;
   summary?: string;
-  category_id: number;
   tags: string[];
-  metadata: Metadata;
   is_published: boolean;
 }
 
@@ -53,37 +48,8 @@ export interface UpdateKnowledgeRequest {
   title?: string;
   content?: string;
   summary?: string;
-  category_id?: number;
   tags?: string[];
-  metadata?: Metadata;
   is_published?: boolean;
-}
-
-// 分类相关类型
-export interface Category {
-  id: number;
-  name: string;
-  description: string;
-  color: string;
-  icon: string;
-  parent_id?: number;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  parent?: Category;
-  children?: Category[];
-  knowledges?: Knowledge[];
-}
-
-export interface CreateCategoryRequest {
-  name: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  parent_id?: number;
-  sort_order?: number;
-  is_active?: boolean;
 }
 
 // 标签相关类型
@@ -168,7 +134,6 @@ export interface QueryStats {
 // 概览统计类型
 export interface OverviewStats {
   knowledge_count: number;
-  category_count: number;
   tag_count: number;
   query_count: number;
 }
@@ -261,6 +226,48 @@ export interface FeedbackRequest {
   rating: number;
   comment?: string;
   is_helpful: boolean;
+}
+
+// 文档处理状态相关类型
+export interface DocumentProcessingStatus {
+  documentId: string;
+  preprocessStatus: ProcessingStatusType;
+  vectorizationStatus: ProcessingStatusType;
+  progress: number;
+  vectorizationProgress: number;
+  error?: string;
+  vectorizationError?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  processingTime?: number;
+}
+
+export type ProcessingStatusType = 
+  | 'pending' 
+  | 'processing' 
+  | 'completed' 
+  | 'failed' 
+  | 'not_started';
+
+// 批量处理请求类型
+export interface BatchProcessingRequest {
+  documentIds: string[];
+}
+
+// 批量处理状态类型
+export interface BatchProcessingStatus {
+  batchId: string;
+  documentIds: string[];
+  overallStatus: ProcessingStatusType;
+  completedCount: number;
+  failedCount: number;
+  totalCount: number;
+  progress: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  documents: DocumentProcessingStatus[];
 }
 
 // 导出的常量

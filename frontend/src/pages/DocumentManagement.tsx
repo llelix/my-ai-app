@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Upload, 
   Table, 
@@ -8,26 +9,40 @@ import {
   Input, 
   Space,
   Popconfirm,
-  Progress
+  Progress,
+  Switch,
+  Tooltip
 } from 'antd';
 import { 
   UploadOutlined, 
   DownloadOutlined, 
   DeleteOutlined, 
-  EditOutlined 
+  EditOutlined,
+  SettingOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
-import { documentService } from '../services/documentService';
-import type { Document } from '../types';
+import { documentService, documentProcessingService } from '../services';
+import { DocumentProcessingButtons, DocumentProcessingStatusIndicator } from '../components';
+import type { Document, DocumentProcessingStatus } from '../types';
 
 const DocumentManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [editModal, setEditModal] = useState<{ visible: boolean; document?: Document }>({ visible: false });
   const [description, setDescription] = useState('');
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [processingStatuses, setProcessingStatuses] = useState<{ [key: string]: DocumentProcessingStatus }>({});
+  const [showProcessingColumns, setShowProcessingColumns] = useState(true);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   useEffect(() => {
     loadDocuments();
+    
+    // 组件卸载时清理轮询
+    return () => {
+      documentProcessingService.cleanup();
+    };
   }, []);
 
   const loadDocuments = async () => {
@@ -36,12 +51,75 @@ const DocumentManagement: React.FC = () => {
       const response = await documentService.getDocuments();
       // 根据实际API返回结构调整
       const documentsData = response.data?.items || response.data || [];
-      setDocuments(Array.isArray(documentsData) ? documentsData : []);
+      const docs = Array.isArray(documentsData) ? documentsData : [];
+      setDocuments(docs);
+      
+      // 加载每个文档的处理状态
+      await loadProcessingStatuses(docs);
     } catch (error) {
       console.error('加载文档失败:', error);
       message.error('加载文档失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 加载文档处理状态
+  const loadProcessingStatuses = async (docs: Document[]) => {
+    const statusPromises = docs.map(async (doc) => {
+      try {
+        const status = await documentProcessingService.getProcessingStatus(doc.id.toString());
+        return { docId: doc.id.toString(), status };
+      } catch (error) {
+        // 如果获取状态失败，返回默认状态
+        return {
+          docId: doc.id.toString(),
+          status: {
+            documentId: doc.id.toString(),
+            preprocessStatus: 'not_started' as const,
+            vectorizationStatus: 'not_started' as const,
+            progress: 0,
+            vectorizationProgress: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        };
+      }
+    });
+
+    const results = await Promise.all(statusPromises);
+    const statusMap: { [key: string]: DocumentProcessingStatus } = {};
+    results.forEach(({ docId, status }) => {
+      statusMap[docId] = status;
+    });
+    setProcessingStatuses(statusMap);
+  };
+
+  // 处理状态更新
+  const handleStatusUpdate = (documentId: string, status: DocumentProcessingStatus) => {
+    setProcessingStatuses(prev => ({
+      ...prev,
+      [documentId]: status
+    }));
+  };
+
+  // 批量处理操作
+  const handleBatchPreprocess = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请选择要处理的文档');
+      return;
+    }
+
+    try {
+      const documentIds = selectedRowKeys.map(key => key.toString());
+      await documentProcessingService.batchTriggerPreprocessing(documentIds);
+      message.success(`已开始批量预处理 ${documentIds.length} 个文档`);
+      
+      // 重新加载状态
+      await loadProcessingStatuses(documents);
+    } catch (error) {
+      console.error('批量预处理失败:', error);
+      message.error('批量预处理失败');
     }
   };
 
@@ -137,48 +215,102 @@ const DocumentManagement: React.FC = () => {
       title: '文件名',
       dataIndex: 'original_name',
       key: 'original_name',
+      width: 200,
     },
     {
       title: '大小',
       dataIndex: 'file_size',
       key: 'file_size',
+      width: 100,
       render: (size: number) => formatFileSize(size),
     },
     {
       title: '类型',
       dataIndex: 'mime_type',
       key: 'mime_type',
+      width: 120,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 80,
       render: (status: string) => getStatusBadge(status),
     },
+    ...(showProcessingColumns ? [
+      {
+        title: '处理状态',
+        key: 'processing_status',
+        width: 200,
+        render: (_: any, record: Document) => {
+          const status = processingStatuses[record.id.toString()];
+          return status ? (
+            <DocumentProcessingStatusIndicator 
+              status={status}
+              showProgress={true}
+              showBothStatuses={true}
+              size="small"
+            />
+          ) : (
+            <span style={{ color: '#999' }}>加载中...</span>
+          );
+        },
+      },
+      {
+        title: '处理操作',
+        key: 'processing_actions',
+        width: 300,
+        render: (_: any, record: Document) => {
+          const status = processingStatuses[record.id.toString()];
+          return status ? (
+            <DocumentProcessingButtons
+              documentId={record.id.toString()}
+              initialStatus={status}
+              onStatusChange={(newStatus) => handleStatusUpdate(record.id.toString(), newStatus)}
+              size="small"
+              showProgress={false}
+              showRetry={true}
+            />
+          ) : null;
+        },
+      }
+    ] : []),
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
+      width: 150,
       render: (text: string) => text || '-',
     },
     {
       title: '上传时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 150,
       render: (date: string) => new Date(date).toLocaleString(),
     },
     {
       title: '操作',
       key: 'actions',
+      width: 250,
       render: (_: any, record: Document) => (
         <Space>
           <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/documents/${record.id}/processing`)}
+          >
+            详情
+          </Button>
+          <Button
+            size="small"
             icon={<DownloadOutlined />}
             onClick={() => window.open(documentService.getDownloadUrl(record.id))}
           >
             下载
           </Button>
           <Button
+            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEditDescription(record)}
           >
@@ -188,7 +320,7 @@ const DocumentManagement: React.FC = () => {
             title="确定删除此文档吗？"
             onConfirm={() => handleDelete(record.id)}
           >
-            <Button danger icon={<DeleteOutlined />}>
+            <Button size="small" danger icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>
@@ -200,13 +332,56 @@ const DocumentManagement: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <Upload
-          beforeUpload={handleUpload}
-          showUploadList={false}
-          multiple
-        >
-          <Button icon={<UploadOutlined />}>上传文档</Button>
-        </Upload>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <Space wrap>
+            <Upload
+              beforeUpload={handleUpload}
+              showUploadList={false}
+              multiple
+            >
+              <Button icon={<UploadOutlined />}>上传文档</Button>
+            </Upload>
+            
+            {selectedRowKeys.length > 0 && (
+              <Button 
+                type="primary" 
+                onClick={handleBatchPreprocess}
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量预处理 ({selectedRowKeys.length})
+              </Button>
+            )}
+          </Space>
+
+          <Space wrap>
+            <Tooltip title="显示/隐藏处理状态列">
+              <Switch
+                checked={showProcessingColumns}
+                onChange={setShowProcessingColumns}
+                checkedChildren="处理列"
+                unCheckedChildren="处理列"
+                size="small"
+              />
+            </Tooltip>
+            
+            <Tooltip title="刷新文档列表">
+              <Button 
+                icon={<SettingOutlined />} 
+                onClick={loadDocuments}
+                loading={loading}
+                size="small"
+              >
+                <span className="desktop-only">刷新</span>
+              </Button>
+            </Tooltip>
+          </Space>
+        </div>
       </div>
 
       {/* 上传进度显示 */}
@@ -226,6 +401,21 @@ const DocumentManagement: React.FC = () => {
         dataSource={documents}
         rowKey="id"
         loading={loading}
+        scroll={{ x: showProcessingColumns ? 1400 : 800 }}
+        rowSelection={showProcessingColumns ? {
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+          getCheckboxProps: (record: Document) => ({
+            disabled: record.status !== 'completed', // 只允许选择已完成上传的文档
+          }),
+        } : undefined}
+        pagination={{
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          responsive: true,
+        }}
+        size="small"
       />
 
       <Modal
@@ -241,6 +431,39 @@ const DocumentManagement: React.FC = () => {
           rows={4}
         />
       </Modal>
+
+      {/* 响应式样式 */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (max-width: 768px) {
+            .desktop-only {
+              display: none;
+            }
+            .ant-table-thead > tr > th {
+              padding: 8px 4px !important;
+              font-size: 12px !important;
+            }
+            .ant-table-tbody > tr > td {
+              padding: 8px 4px !important;
+              font-size: 12px !important;
+            }
+          }
+          @media (max-width: 480px) {
+            .ant-table-thead > tr > th {
+              padding: 6px 2px !important;
+              font-size: 11px !important;
+            }
+            .ant-table-tbody > tr > td {
+              padding: 6px 2px !important;
+              font-size: 11px !important;
+            }
+            .ant-btn {
+              padding: 4px 8px !important;
+              font-size: 12px !important;
+            }
+          }
+        `
+      }} />
     </div>
   );
 };

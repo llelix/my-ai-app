@@ -24,8 +24,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useKnowledgeStore } from '../../store';
-import { knowledgeService, categoryService, tagService } from '../../services';
-import type { Knowledge, Category, Tag as TagType } from '../../types';
+import { knowledgeService, tagService } from '../../services';
+import type { Knowledge, Tag as TagType } from '../../types';
 import { formatDate, truncateText } from '../../utils/helpers';
 
 const { Search } = Input;
@@ -35,13 +35,11 @@ const KnowledgeList: React.FC = () => {
   const navigate = useNavigate();
   const {
     knowledges,
-    categories,
     tags,
     pagination,
     filters,
     loading,
     setKnowledges,
-    setCategories,
     setTags,
     setPagination,
     setFilters,
@@ -54,16 +52,14 @@ const KnowledgeList: React.FC = () => {
   const loadData = async (params?: any) => {
     setLoading(true);
     try {
-      const [knowledgeRes, categoryRes, tagRes] = await Promise.all([
+      const [knowledgeRes, tagRes] = await Promise.all([
         knowledgeService.getKnowledges({
           page: pagination.page,
           page_size: pagination.page_size,
           search: filters.search,
-          category_id: filters.category_id || undefined,
           tag_id: filters.tag_id || undefined,
           ...params,
         }),
-        categoryService.getCategories(),
         tagService.getTags(),
       ]);
 
@@ -74,7 +70,6 @@ const KnowledgeList: React.FC = () => {
         total: knowledgeRes.data?.total || 0,
         total_pages: knowledgeRes.data?.total_pages || 0,
       });
-      setCategories(categoryRes.data || []);
       setTags(tagRes.data || []);
     } catch (error) {
       message.error('加载数据失败');
@@ -159,17 +154,6 @@ const KnowledgeList: React.FC = () => {
             {truncateText(record.content, 50)}
           </div>
         </div>
-      ),
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 120,
-      render: (category) => (
-        <Tag color={category?.color || 'default'}>
-          {category?.name || '未分类'}
-        </Tag>
       ),
     },
     {
@@ -314,19 +298,6 @@ const KnowledgeList: React.FC = () => {
             enterButton
             allowClear
           />
-          <Select
-            placeholder="选择分类"
-            style={{ width: 150 }}
-            value={filters.category_id}
-            onChange={(value) => handleFilter('category_id', value)}
-            allowClear
-          >
-            {categories.map((category: Category) => (
-              <Option key={category.id} value={category.id}>
-                {category.name}
-              </Option>
-            ))}
-          </Select>
           <Select
             placeholder="选择标签"
             style={{ width: 150 }}

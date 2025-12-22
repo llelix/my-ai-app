@@ -10,7 +10,6 @@ import type {
 export class KnowledgeService {
   // 获取知识列表
   async getKnowledges(params?: PaginationRequest & {
-    category_id?: number;
     tag_id?: number;
     include_unpublished?: boolean;
   }) {

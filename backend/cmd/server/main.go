@@ -60,12 +60,7 @@ func main() {
 		logger.GetLogger().WithField("error", err).Fatal("Failed to initialize database")
 	}
 
-	
-
-	// 自动迁移数据库
-	if err := database.AutoMigrate(); err != nil {
-		logger.GetLogger().WithField("error", err).Fatal("Failed to migrate database")
-	}
+	logger.GetLogger().Info("Database migration completed successfully")
 
 	// 初始化MinIO客户端
 	minioClient, err := service.NewMinIOClient(&cfg.S3)

@@ -70,37 +70,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/categories": {
-            "get": {
-                "description": "获取所有分类，支持按状态过滤",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categories"
-                ],
-                "summary": "获取分类列表",
-                "parameters": [
-                    {
-                        "type": "boolean",
-                        "description": "是否激活",
-                        "name": "is_active",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/ai-knowledge-app_pkg_utils.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/health": {
             "get": {
                 "description": "检查服务和数据库连接状态",
@@ -336,76 +305,9 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "ai-knowledge-app_internal_models.Category": {
-            "type": "object",
-            "properties": {
-                "children": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ai-knowledge-app_internal_models.Category"
-                    }
-                },
-                "color": {
-                    "description": "十六进制颜色代码",
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "icon": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "knowledges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ai-knowledge-app_internal_models.Knowledge"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "parent": {
-                    "description": "关联",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/ai-knowledge-app_internal_models.Category"
-                        }
-                    ]
-                },
-                "parent_id": {
-                    "type": "integer"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "ai-knowledge-app_internal_models.Knowledge": {
             "type": "object",
             "properties": {
-                "category": {
-                    "description": "关联",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/ai-knowledge-app_internal_models.Category"
-                        }
-                    ]
-                },
-                "category_id": {
-                    "type": "integer"
-                },
                 "content": {
                     "type": "string"
                 },
@@ -418,23 +320,8 @@ const docTemplate = `{
                 "is_published": {
                     "type": "boolean"
                 },
-                "metadata": {
-                    "$ref": "#/definitions/ai-knowledge-app_internal_models.Metadata"
-                },
-                "query_history": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ai-knowledge-app_internal_models.QueryHistory"
-                    }
-                },
                 "summary": {
                     "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ai-knowledge-app_internal_models.Tag"
-                    }
                 },
                 "title": {
                     "type": "string"
@@ -443,107 +330,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "view_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "ai-knowledge-app_internal_models.Metadata": {
-            "type": "object",
-            "properties": {
-                "author": {
-                    "type": "string"
-                },
-                "difficulty": {
-                    "description": "easy, medium, hard",
-                    "type": "string"
-                },
-                "keywords": {
-                    "type": "string"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "word_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "ai-knowledge-app_internal_models.QueryHistory": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "duration": {
-                    "description": "毫秒",
-                    "type": "integer"
-                },
-                "error_message": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_success": {
-                    "type": "boolean"
-                },
-                "knowledge": {
-                    "description": "关联",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/ai-knowledge-app_internal_models.Knowledge"
-                        }
-                    ]
-                },
-                "knowledge_id": {
-                    "type": "integer"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "query": {
-                    "type": "string"
-                },
-                "response": {
-                    "type": "string"
-                },
-                "tokens": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "ai-knowledge-app_internal_models.Tag": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "knowledges": {
-                    "description": "关联",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ai-knowledge-app_internal_models.Knowledge"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "usage_count": {
                     "type": "integer"
                 }
             }
@@ -585,17 +371,26 @@ const docTemplate = `{
                 "title"
             ],
             "properties": {
-                "category_id": {
-                    "type": "integer"
+                "author": {
+                    "type": "string"
                 },
                 "content": {
+                    "type": "string"
+                },
+                "difficulty": {
                     "type": "string"
                 },
                 "is_published": {
                     "type": "boolean"
                 },
-                "metadata": {
-                    "$ref": "#/definitions/ai-knowledge-app_internal_models.Metadata"
+                "keywords": {
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "summary": {
                     "type": "string"
@@ -680,17 +475,26 @@ const docTemplate = `{
         "internal_api.UpdateKnowledgeRequest": {
             "type": "object",
             "properties": {
-                "category_id": {
-                    "type": "integer"
+                "author": {
+                    "type": "string"
                 },
                 "content": {
+                    "type": "string"
+                },
+                "difficulty": {
                     "type": "string"
                 },
                 "is_published": {
                     "type": "boolean"
                 },
-                "metadata": {
-                    "$ref": "#/definitions/ai-knowledge-app_internal_models.Metadata"
+                "keywords": {
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "summary": {
                     "type": "string"

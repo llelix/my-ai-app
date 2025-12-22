@@ -94,7 +94,7 @@ func (s *DocumentService) VerifyObjectIntegrity(filePath, expectedHash string) e
 		if _, err := io.Copy(hash, object); err != nil {
 			return fmt.Errorf("failed to calculate object hash: %w", err)
 		}
-		
+
 		calculatedHash := fmt.Sprintf("%x", hash.Sum(nil))
 		if calculatedHash != expectedHash {
 			return fmt.Errorf("object hash mismatch: expected %s, got %s", expectedHash, calculatedHash)
@@ -176,19 +176,19 @@ func (s *DocumentService) InitUpload(fileName string, fileSize int64, fileHash s
 	sessionID := uuid.New().String()
 	tempDir := filepath.Join(s.tempDir, sessionID)
 	var uploadID string
-	
+
 	if s.minioClient != nil {
 		// For MinIO, use AWS S3 multipart upload
 		objectKey := fmt.Sprintf("documents/%d_%s", time.Now().Unix(), fileName)
 		tempDir = objectKey
-		
+
 		// Initialize S3 multipart upload
 		ctx := context.Background()
 		input := &s3.CreateMultipartUploadInput{
 			Bucket: aws.String(s.minioClient.GetBucketName()),
 			Key:    aws.String(objectKey),
 		}
-		
+
 		result, err := s.minioClient.CreateMultipartUploadWithRetry(ctx, input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize S3 multipart upload: %w", err)
@@ -240,10 +240,10 @@ func (s *DocumentService) UploadChunk(sessionID string, chunkIndex int, data []b
 		// For MinIO, use AWS S3 multipart upload part
 		ctx := context.Background()
 		reader := bytes.NewReader(data)
-		
+
 		// Part numbers in S3 start from 1, not 0
 		partNumber := int32(chunkIndex + 1)
-		
+
 		input := &s3.UploadPartInput{
 			Bucket:     aws.String(s.minioClient.GetBucketName()),
 			Key:        aws.String(session.TempDir),
@@ -251,7 +251,7 @@ func (s *DocumentService) UploadChunk(sessionID string, chunkIndex int, data []b
 			PartNumber: &partNumber,
 			Body:       reader,
 		}
-		
+
 		_, err := s.minioClient.UploadPartWithRetry(ctx, input)
 		if err != nil {
 			return fmt.Errorf("failed to upload chunk %d to S3: %w", chunkIndex, err)
@@ -263,7 +263,7 @@ func (s *DocumentService) UploadChunk(sessionID string, chunkIndex int, data []b
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -282,14 +282,14 @@ func (s *DocumentService) CompleteUpload(sessionID string) (*models.Document, er
 		// For MinIO: complete S3 multipart upload
 		ctx := context.Background()
 		finalPath = session.TempDir // This is the object key
-		
+
 		// First, list the uploaded parts to get their ETags
 		listInput := &s3.ListPartsInput{
 			Bucket:   aws.String(s.minioClient.GetBucketName()),
 			Key:      aws.String(finalPath),
 			UploadId: aws.String(session.UploadID),
 		}
-		
+
 		listResult, err := s.minioClient.ListPartsWithRetry(ctx, listInput)
 		if err != nil {
 			// Abort the multipart upload on error
@@ -301,7 +301,7 @@ func (s *DocumentService) CompleteUpload(sessionID string) (*models.Document, er
 			s.minioClient.AbortMultipartUploadWithRetry(ctx, abortInput)
 			return nil, fmt.Errorf("failed to list parts for S3 multipart upload: %w", err)
 		}
-		
+
 		// Build the list of completed parts with ETags
 		var completedParts []types.CompletedPart
 		for _, part := range listResult.Parts {
@@ -310,7 +310,7 @@ func (s *DocumentService) CompleteUpload(sessionID string) (*models.Document, er
 				ETag:       part.ETag,
 			})
 		}
-		
+
 		// Complete the multipart upload
 		completeInput := &s3.CompleteMultipartUploadInput{
 			Bucket:   aws.String(s.minioClient.GetBucketName()),
@@ -320,7 +320,7 @@ func (s *DocumentService) CompleteUpload(sessionID string) (*models.Document, er
 				Parts: completedParts,
 			},
 		}
-		
+
 		_, err = s.minioClient.CompleteMultipartUploadWithRetry(ctx, completeInput)
 		if err != nil {
 			// Abort the multipart upload on error
@@ -332,7 +332,7 @@ func (s *DocumentService) CompleteUpload(sessionID string) (*models.Document, er
 			s.minioClient.AbortMultipartUploadWithRetry(ctx, abortInput)
 			return nil, fmt.Errorf("failed to complete S3 multipart upload: %w", err)
 		}
-		
+
 		// For MinIO, we trust the hash provided during initialization
 		calculatedHash = session.FileHash
 	} else {
@@ -407,11 +407,11 @@ func (s *DocumentService) GetUploadProgress(sessionID string) (*models.UploadSes
 	}
 
 	uploadedSize := int64(0)
-	
+
 	if s.minioClient != nil {
 		// For MinIO multipart upload, list uploaded parts using S3 API
 		ctx := context.Background()
-		
+
 		if session.UploadID != "" {
 			// List parts for the multipart upload
 			input := &s3.ListPartsInput{
@@ -419,7 +419,7 @@ func (s *DocumentService) GetUploadProgress(sessionID string) (*models.UploadSes
 				Key:      aws.String(session.TempDir),
 				UploadId: aws.String(session.UploadID),
 			}
-			
+
 			result, err := s.minioClient.ListPartsWithRetry(ctx, input)
 			if err != nil {
 				// If we can't list parts, assume no progress
@@ -465,7 +465,7 @@ func (s *DocumentService) AbortUpload(sessionID string) error {
 				Key:      aws.String(session.TempDir),
 				UploadId: aws.String(session.UploadID),
 			}
-			
+
 			_, err := s.minioClient.AbortMultipartUploadWithRetry(ctx, input)
 			if err != nil {
 				// Log error but continue with cleanup
@@ -500,7 +500,7 @@ func (s *DocumentService) CleanupExpiredSessions() error {
 					Key:      aws.String(session.TempDir),
 					UploadId: aws.String(session.UploadID),
 				}
-				
+
 				_, err := s.minioClient.AbortMultipartUploadWithRetry(ctx, input)
 				if err != nil {
 					// Log error but continue with cleanup
@@ -542,14 +542,14 @@ func (s *DocumentService) Upload(file *multipart.FileHeader) (*models.Document, 
 	src.Seek(0, 0)
 	ext := filepath.Ext(file.Filename)
 	filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
-	
+
 	var filePath string
-	
+
 	// Use MinIO if available, otherwise fallback to local storage
 	if s.minioClient != nil {
 		// Generate S3 object key
 		objectKey := fmt.Sprintf("documents/%s", filename)
-		
+
 		// Upload to MinIO with retry logic
 		ctx := context.Background()
 		_, err = s.minioClient.PutObjectWithRetry(ctx, objectKey, src, file.Size, minio.PutObjectOptions{
@@ -558,7 +558,7 @@ func (s *DocumentService) Upload(file *multipart.FileHeader) (*models.Document, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload to MinIO: %w", err)
 		}
-		
+
 		filePath = objectKey // Store S3 object key as file path
 	} else {
 		// Fallback to local storage
@@ -653,7 +653,7 @@ func (s *DocumentService) Delete(id uint) error {
 
 	// Check if there are other documents referencing the same file
 	var remainingRefs int64
-	if err := tx.Model(&models.Document{}).Where("file_hash = ? AND file_size = ? AND status = ?", 
+	if err := tx.Model(&models.Document{}).Where("file_hash = ? AND file_size = ? AND status = ?",
 		doc.FileHash, doc.FileSize, "completed").Count(&remainingRefs).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("failed to count remaining references: %w", err)
@@ -693,7 +693,7 @@ func (s *DocumentService) CleanupOrphanedObjects() error {
 	}
 
 	ctx := context.Background()
-	
+
 	// List all objects in the bucket
 	objectCh := s.minioClient.ListObjectsWithRetry(ctx, minio.ListObjectsOptions{
 		Prefix:    "documents/",
@@ -701,7 +701,7 @@ func (s *DocumentService) CleanupOrphanedObjects() error {
 	})
 
 	var orphanedObjects []string
-	
+
 	for object := range objectCh {
 		if object.Err != nil {
 			return fmt.Errorf("error listing objects: %w", object.Err)
@@ -774,11 +774,36 @@ func (s *DocumentService) GetDeduplicationStats() (map[string]interface{}, error
 	}
 
 	return map[string]interface{}{
-		"total_documents":      totalDocs,
-		"unique_files":         uniqueFiles,
-		"total_size_bytes":     totalSize,
-		"unique_size_bytes":    uniqueSize,
-		"space_saved_bytes":    spaceSaved,
-		"deduplication_ratio":  deduplicationRatio,
+		"total_documents":     totalDocs,
+		"unique_files":        uniqueFiles,
+		"total_size_bytes":    totalSize,
+		"unique_size_bytes":   uniqueSize,
+		"space_saved_bytes":   spaceSaved,
+		"deduplication_ratio": deduplicationRatio,
 	}, nil
+}
+
+// StartPreprocessing 启动文档预处理
+func (s *DocumentService) StartPreprocessing(documentID uint) error {
+	// 检查文档是否存在
+	var doc models.Document
+	if err := s.db.First(&doc, documentID).Error; err != nil {
+		return fmt.Errorf("document not found: %w", err)
+	}
+
+	// 检查文档状态
+	if doc.Status != "completed" {
+		return fmt.Errorf("document is not ready for preprocessing, current status: %s", doc.Status)
+	}
+
+	// 更新文档状态为处理中
+	if err := s.db.Model(&doc).Update("status", "processing").Error; err != nil {
+		return fmt.Errorf("failed to update document status: %w", err)
+	}
+
+	// TODO: 这里应该启动实际的预处理任务
+	// 目前只是模拟，实际实现需要集成预处理服务
+	// 可以通过队列系统异步处理，或者直接调用预处理服务
+
+	return nil
 }

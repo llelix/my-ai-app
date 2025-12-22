@@ -7,7 +7,6 @@ import (
 	"ai-knowledge-app/internal/ai"
 	"ai-knowledge-app/internal/config"
 	"ai-knowledge-app/internal/middleware"
-	"ai-knowledge-app/internal/models"
 	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
 	"ai-knowledge-app/pkg/utils"
@@ -22,7 +21,6 @@ type Router struct {
 	config           *config.Config
 	knowledgeHandler *KnowledgeHandler
 	aiHandler        *AIHandler
-	categoryHandler  *CategoryHandler
 	tagHandler       *TagHandler
 	documentHandler  *DocumentHandler
 	vectorService    service.VectorService
@@ -48,7 +46,6 @@ func NewRouter(config *config.Config, vectorService service.VectorService, minio
 		config:           config,
 		knowledgeHandler: NewKnowledgeHandler(vectorService),
 		aiHandler:        aiHandler,
-		categoryHandler:  NewCategoryHandler(),
 		tagHandler:       NewTagHandler(),
 		documentHandler:  NewDocumentHandler(documentService),
 		vectorService:    vectorService,
@@ -100,17 +97,6 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			knowledge.POST("/:id/view", r.knowledgeHandler.IncrementViewCount)
 		}
 
-		// 分类相关路由
-		categories := v1.Group("/categories")
-		{
-			categories.GET("", r.categoryHandler.GetCategories)
-			categories.GET("/:id", r.categoryHandler.GetCategory)
-			categories.POST("", r.categoryHandler.CreateCategory)
-			categories.PUT("/:id", r.categoryHandler.UpdateCategory)
-			categories.DELETE("/:id", r.categoryHandler.DeleteCategory)
-			categories.GET("/:id/knowledges", r.categoryHandler.GetCategoryKnowledges)
-		}
-
 		// 标签相关路由
 		tags := v1.Group("/tags")
 		{
@@ -134,29 +120,17 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			ai.GET("/models", r.aiHandler.GetModels)
 		}
 
-		// 统计相关路由
-		stats := v1.Group("/stats")
-		{
-			stats.GET("/overview", r.getOverviewStats)
-			stats.GET("/knowledge", r.getKnowledgeStats)
-			stats.GET("/queries", r.getQueryStats)
-		}
-
 		// 文档管理路由
 		documents := v1.Group("/documents")
 		{
+			documents.GET("/check", r.documentHandler.CheckFile)
 			documents.POST("/upload", r.documentHandler.Upload)
 			documents.GET("", r.documentHandler.List)
-			documents.GET("/:id", r.documentHandler.Get)
-			documents.DELETE("/:id", r.documentHandler.Delete)
 			documents.PUT("/:id/description", r.documentHandler.UpdateDescription)
 			documents.GET("/:id/download", r.documentHandler.Download)
-		}
-
-		// 文件上传路由
-		files := v1.Group("/files")
-		{
-			files.POST("/upload", r.uploadFile)
+			documents.GET("/:id", r.documentHandler.Get)
+			documents.DELETE("/:id", r.documentHandler.Delete)
+			documents.POST("/:id/preprocess", r.documentHandler.Preprocess)
 		}
 	}
 
@@ -235,156 +209,4 @@ func (r *Router) debugConfig(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, config)
-}
-
-// getOverviewStats 获取概览统计
-func (r *Router) getOverviewStats(c *gin.Context) {
-	db := database.GetDatabase()
-
-	var knowledgeCount, categoryCount, tagCount, queryCount int64
-
-	// 统计知识条目数量
-	db.Model(&models.Knowledge{}).Count(&knowledgeCount)
-
-	// 统计分类数量
-	db.Model(&models.Category{}).Count(&categoryCount)
-
-	// 统计标签数量
-	db.Model(&models.Tag{}).Count(&tagCount)
-
-	// 统计查询数量
-	db.Model(&models.QueryHistory{}).Count(&queryCount)
-
-	stats := gin.H{
-		"knowledge_count": knowledgeCount,
-		"category_count":  categoryCount,
-		"tag_count":       tagCount,
-		"query_count":     queryCount,
-	}
-
-	utils.SuccessResponse(c, stats)
-}
-
-// getKnowledgeStats 获取知识库统计
-func (r *Router) getKnowledgeStats(c *gin.Context) {
-	db := database.GetDatabase()
-
-	// 按分类统计
-	var categoryStats []struct {
-		CategoryID uint   `json:"category_id"`
-		CategoryName string `json:"category_name"`
-		Count      int64  `json:"count"`
-	}
-
-	db.Table("knowledges").
-		Select("category_id, categories.name as category_name, count(*) as count").
-		Joins("left join categories on knowledges.category_id = categories.id").
-		Group("category_id, categories.name").
-		Scan(&categoryStats)
-
-	// 按标签统计
-	var tagStats []struct {
-		TagID      uint   `json:"tag_id"`
-		TagName    string `json:"tag_name"`
-		Count      int64  `json:"count"`
-	}
-
-	db.Table("tags").
-		Select("tags.id as tag_id, tags.name as tag_name, count(knowledge_tags.tag_id) as count").
-		Joins("left join knowledge_tags on tags.id = knowledge_tags.tag_id").
-		Group("tags.id, tags.name").
-		Order("count desc").
-		Limit(10).
-		Scan(&tagStats)
-
-	stats := gin.H{
-		"by_category": categoryStats,
-		"by_tags":     tagStats,
-	}
-
-	utils.SuccessResponse(c, stats)
-}
-
-// getQueryStats 获取查询统计
-func (r *Router) getQueryStats(c *gin.Context) {
-	db := database.GetDatabase()
-
-	// 今日查询数量
-	var todayCount int64
-	today := time.Now().Truncate(24 * time.Hour)
-	db.Model(&models.QueryHistory{}).
-		Where("created_at >= ?", today).
-		Count(&todayCount)
-
-	// 本周查询数量
-	var weekCount int64
-	weekStart := time.Now().AddDate(0, 0, -7)
-	db.Model(&models.QueryHistory{}).
-		Where("created_at >= ?", weekStart).
-		Count(&weekCount)
-
-	// 查询成功率
-	var successCount, totalCount int64
-	db.Model(&models.QueryHistory{}).Count(&totalCount)
-	db.Model(&models.QueryHistory{}).Where("is_success = ?", true).Count(&successCount)
-
-	successRate := float64(0)
-	if totalCount > 0 {
-		successRate = float64(successCount) / float64(totalCount) * 100
-	}
-
-	// 最常用的查询词
-	var popularQueries []struct {
-		Query string `json:"query"`
-		Count int64  `json:"count"`
-	}
-
-	db.Model(&models.QueryHistory{}).
-		Select("query, count(*) as count").
-		Where("is_success = ?", true).
-		Group("query").
-		Order("count desc").
-		Limit(10).
-		Scan(&popularQueries)
-
-	stats := gin.H{
-		"today_count":    todayCount,
-		"week_count":     weekCount,
-		"total_count":    totalCount,
-		"success_rate":   successRate,
-		"popular_queries": popularQueries,
-	}
-
-	utils.SuccessResponse(c, stats)
-}
-
-// uploadFile 文件上传处理
-func (r *Router) uploadFile(c *gin.Context) {
-	file, err := c.FormFile("file")
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "No file uploaded")
-		return
-	}
-
-	// 检查文件大小（限制为10MB）
-	if file.Size > 10*1024*1024 {
-		utils.ErrorResponse(c, http.StatusBadRequest, "File too large (max 10MB)")
-		return
-	}
-
-	// 保存文件
-	filename, err := utils.SaveUploadedFile(file, "uploads")
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save file")
-		return
-	}
-
-	result := gin.H{
-		"filename": filename,
-		"size":     file.Size,
-		"mime_type": file.Header.Get("Content-Type"),
-		"url":      "/uploads/" + filename,
-	}
-
-	utils.SuccessResponse(c, result)
 }

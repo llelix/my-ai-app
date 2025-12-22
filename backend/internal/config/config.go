@@ -14,6 +14,7 @@ type Config struct {
 	Log      LogConfig      `mapstructure:"log"`
 	CORS     CORSConfig     `mapstructure:"cors"`
 	S3       S3Config       `mapstructure:"s3"`
+	MinerU   MinerUConfig   `mapstructure:"mineru"`
 }
 
 // ServerConfig 服务器配置
@@ -78,11 +79,21 @@ type S3Config struct {
 	Region          string `mapstructure:"region"`
 }
 
+// MinerUConfig MinerU文档处理服务配置
+type MinerUConfig struct {
+	BaseURL string `mapstructure:"base_url"`
+	APIKey  string `mapstructure:"api_key"`
+}
+
 // Validate 验证配置
 func (c *Config) Validate() error {
 	// 验证S3配置
 	if err := c.S3.Validate(); err != nil {
 		return fmt.Errorf("S3 configuration error: %w", err)
+	}
+	// 验证MinerU配置
+	if err := c.MinerU.Validate(); err != nil {
+		return fmt.Errorf("MinerU configuration error: %w", err)
 	}
 	return nil
 }
@@ -103,6 +114,17 @@ func (s *S3Config) Validate() error {
 	}
 	if s.Region == "" {
 		return fmt.Errorf("S3 region is required")
+	}
+	return nil
+}
+
+// Validate 验证MinerU配置
+func (m *MinerUConfig) Validate() error {
+	if m.BaseURL == "" {
+		return fmt.Errorf("MinerU base URL is required")
+	}
+	if m.APIKey == "" {
+		return fmt.Errorf("MinerU API key is required")
 	}
 	return nil
 }
@@ -194,4 +216,8 @@ func bindEnvVars() {
 	viper.BindEnv("s3.use_ssl", "S3_USE_SSL")
 	viper.BindEnv("s3.bucket", "S3_BUCKET")
 	viper.BindEnv("s3.region", "S3_REGION")
+
+	// MinerU environment variable bindings
+	viper.BindEnv("mineru.base_url", "MINERU_BASE_URL")
+	viper.BindEnv("mineru.api_key", "MINERU_API_KEY")
 }

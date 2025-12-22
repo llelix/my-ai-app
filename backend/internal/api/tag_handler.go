@@ -98,7 +98,7 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 
 	// 创建标签
 	tag := models.Tag{
-		Name: utils.CleanText(req.Name),
+		Name:  utils.CleanText(req.Name),
 		Color: req.Color,
 	}
 
@@ -217,10 +217,7 @@ func (h *TagHandler) GetTagKnowledges(c *gin.Context) {
 	query := db.Table("knowledges").
 		Select("knowledges.*").
 		Joins("INNER JOIN knowledge_tags ON knowledges.id = knowledge_tags.knowledge_id").
-		Joins("INNER JOIN categories ON knowledges.category_id = categories.id").
-		Where("knowledge_tags.tag_id = ? AND knowledges.is_published = ?", tag.ID, true).
-		Preload("Category").
-		Preload("Tags")
+		Where("knowledge_tags.tag_id = ? AND knowledges.is_published = ?", tag.ID, true)
 
 	// 搜索条件
 	if pagination.Search != "" {

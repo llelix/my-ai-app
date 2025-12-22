@@ -13,7 +13,6 @@ import KnowledgeList from './pages/Knowledge/KnowledgeList';
 import KnowledgeDetail from './pages/Knowledge/KnowledgeDetail';
 import KnowledgeCreate from './pages/Knowledge/KnowledgeCreate';
 import KnowledgeEdit from './pages/Knowledge/KnowledgeEdit';
-import CategoryList from './pages/Category/CategoryList';
 import TagList from './pages/Tag/TagList';
 import AIChat from './pages/AI/AIChat';
 import AIHistory from './pages/AI/AIHistory';
@@ -58,9 +57,6 @@ const App: React.FC = () => {
               <Route path="knowledge/:id" element={<KnowledgeDetail />} />
               <Route path="knowledge/create" element={<KnowledgeCreate />} />
               <Route path="knowledge/:id/edit" element={<KnowledgeEdit />} />
-
-              {/* 分类管理 */}
-              <Route path="categories" element={<CategoryList />} />
 
               {/* 标签管理 */}
               <Route path="tags" element={<TagList />} />

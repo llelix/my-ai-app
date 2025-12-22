@@ -47,12 +47,12 @@ type QueryRequest struct {
 
 // QueryResponse AI查询响应
 type QueryResponse struct {
-	Response      string        `json:"response"`
-	Model         string        `json:"model"`
-	Tokens        int           `json:"tokens"`
-	Duration      int           `json:"duration"` // 毫秒
-	KnowledgeIDs  []uint        `json:"knowledge_ids,omitempty"`
-	RelevantDocs  []string      `json:"relevant_docs,omitempty"`
+	Response          string             `json:"response"`
+	Model             string             `json:"model"`
+	Tokens            int                `json:"tokens"`
+	Duration          int                `json:"duration"` // 毫秒
+	KnowledgeIDs      []uint             `json:"knowledge_ids,omitempty"`
+	RelevantDocs      []string           `json:"relevant_docs,omitempty"`
 	RelatedKnowledges []models.Knowledge `json:"related_knowledges,omitempty"`
 }
 
@@ -118,19 +118,18 @@ func (h *AIHandler) Query(c *gin.Context) {
 	var relatedKnowledges []models.Knowledge
 	if len(aiResp.KnowledgeIDs) > 0 {
 		db := database.GetDatabase()
-		db.Preload("Category").Preload("Tags").
-			Where("id IN ? AND is_published = ?", aiResp.KnowledgeIDs, true).
+		db.Where("id IN ? AND is_published = ?", aiResp.KnowledgeIDs, true).
 			Find(&relatedKnowledges)
 	}
 
 	// 构建响应
 	response := QueryResponse{
-		Response:      aiResp.Response,
-		Model:         aiResp.Model,
-		Tokens:        aiResp.Tokens,
-		Duration:      int(aiResp.Duration.Milliseconds()),
-		KnowledgeIDs:  aiResp.KnowledgeIDs,
-		RelevantDocs:  aiResp.RelevantDocs,
+		Response:          aiResp.Response,
+		Model:             aiResp.Model,
+		Tokens:            aiResp.Tokens,
+		Duration:          int(aiResp.Duration.Milliseconds()),
+		KnowledgeIDs:      aiResp.KnowledgeIDs,
+		RelevantDocs:      aiResp.RelevantDocs,
 		RelatedKnowledges: relatedKnowledges,
 	}
 
@@ -294,10 +293,10 @@ func (h *AIHandler) GetQueryStats(c *gin.Context) {
 
 // SubmitFeedback 提交反馈
 type FeedbackRequest struct {
-	QueryID     uint   `json:"query_id" binding:"required"`
-	Rating      int    `json:"rating" binding:"required,min=1,max=5"`
-	Comment     string `json:"comment"`
-	IsHelpful   bool   `json:"is_helpful"`
+	QueryID   uint   `json:"query_id" binding:"required"`
+	Rating    int    `json:"rating" binding:"required,min=1,max=5"`
+	Comment   string `json:"comment"`
+	IsHelpful bool   `json:"is_helpful"`
 }
 
 // SubmitFeedback 提交AI查询反馈

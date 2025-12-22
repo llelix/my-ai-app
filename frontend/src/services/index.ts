@@ -3,54 +3,14 @@ export { default as apiService, healthCheck } from './api';
 export { knowledgeService } from './knowledge';
 export { aiService } from './ai';
 export { documentService } from './documentService';
+export { documentProcessingService } from './documentProcessingService';
 
-// 分类服务
+// 标签服务
 import { apiService } from './api';
 import type {
-  Category,
-  CreateCategoryRequest,
   PaginationRequest,
   PaginationResponse
 } from '../types';
-
-export class CategoryService {
-  // 获取分类列表
-  async getCategories(params?: { is_active?: boolean }) {
-    return apiService.get<Category[]>('/categories', { params });
-  }
-
-  // 获取单个分类
-  async getCategory(id: number) {
-    return apiService.get<Category>(`/categories/${id}`);
-  }
-
-  // 创建分类
-  async createCategory(data: CreateCategoryRequest) {
-    return apiService.post<Category>('/categories', data);
-  }
-
-  // 更新分类
-  async updateCategory(id: number, data: CreateCategoryRequest) {
-    return apiService.put<Category>(`/categories/${id}`, data);
-  }
-
-  // 删除分类
-  async deleteCategory(id: number) {
-    return apiService.delete(`/categories/${id}`);
-  }
-
-  // 获取分类下的知识
-  async getCategoryKnowledges(id: number, params?: PaginationRequest) {
-    return apiService.get<PaginationResponse<any>>(`/categories/${id}/knowledges`, { params });
-  }
-
-  // 获取分类树结构
-  async getCategoryTree() {
-    return apiService.get<Category[]>('/categories/tree');
-  }
-}
-
-// 标签服务
 export class TagService {
   // 获取标签列表
   async getTags(params?: { is_active?: boolean; search?: string }) {
@@ -95,7 +55,6 @@ export class StatsService {
   async getOverviewStats() {
     return apiService.get<{
       knowledge_count: number;
-      category_count: number;
       tag_count: number;
       query_count: number;
     }>('/stats/overview');
@@ -104,7 +63,6 @@ export class StatsService {
   // 获取知识库统计
   async getKnowledgeStats() {
     return apiService.get<{
-      by_category: any[];
       by_tags: any[];
     }>('/stats/knowledge');
   }
@@ -166,7 +124,6 @@ export class FileService {
 }
 
 // 创建服务实例
-export const categoryService = new CategoryService();
 export const tagService = new TagService();
 export const statsService = new StatsService();
 export const fileService = new FileService();

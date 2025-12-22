@@ -7,17 +7,14 @@ server:
   port: 8080
   mode: debug  # debug, release, test
 
-# 数据库配置
+# 数据库配置 - 只支持PostgreSQL
 database:
-  type: sqlite  # sqlite, postgres
-  # SQLite配置
-  path: ./data/app.db
-  # PostgreSQL配置（生产环境）
-  # host: localhost
-  # port: 5432
-  # user: postgres
-  # password: ai_knowledge_pw
-  # dbname: ai_knowledge_db
+  type: postgres
+  host: localhost
+  port: 5432
+  user: postgres
+  password: ai_knowledge_pw
+  dbname: ai_knowledge_db
 
 # AI服务配置
 ai:
