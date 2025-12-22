@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"time"
 
 	"ai-knowledge-app/internal/ai"
 	"ai-knowledge-app/internal/config"
@@ -173,80 +172,4 @@ func (r *Router) SetupRoutes() *gin.Engine {
 	})
 
 	return router
-}
-
-// healthCheck 健康检查
-// @Summary 健康检查
-// @Description 检查服务和数据库连接状态
-// @Tags system
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Failure 503 {object} map[string]interface{}
-// @Router /health [get]
-func (r *Router) healthCheck(c *gin.Context) {
-	// 检查数据库连接
-	db := database.GetDatabase()
-	sqlDB, err := db.DB()
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "database connection failed",
-		})
-		return
-	}
-
-	// 测试数据库连接
-	if err := sqlDB.Ping(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "database ping failed",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"version":   "1.0.0",
-	})
-}
-
-// @Summary debug config
-// @Description /debug/config
-// @Tags system
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Failure 503 {object} map[string]interface{}
-// @Router /debug/config [get]
-func (r *Router) debugConfig(c *gin.Context) {
-	// 只返回安全的配置信息（不包含敏感信息）
-	config := gin.H{
-		"server": gin.H{
-			"host": r.config.Server.Host,
-			"port": r.config.Server.Port,
-			"mode": r.config.Server.Mode,
-		},
-		"database": gin.H{
-			"type": r.config.Database.Type,
-			"host": r.config.Database.Host,
-			"port": r.config.Database.Port,
-		},
-		"ai": gin.H{
-			"provider": r.config.AI.Provider,
-			"openai": gin.H{
-				"base_url": r.config.AI.OpenAI.BaseURL,
-				"model":    r.config.AI.OpenAI.Model,
-				"has_key":  r.config.AI.OpenAI.APIKey != "",
-			},
-			"claude": gin.H{
-				"base_url": r.config.AI.Claude.BaseURL,
-				"model":    r.config.AI.Claude.Model,
-				"has_key":  r.config.AI.Claude.APIKey != "",
-			},
-		},
-	}
-
-	utils.SuccessResponse(c, config)
 }

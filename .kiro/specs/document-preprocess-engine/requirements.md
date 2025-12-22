@@ -1,0 +1,6 @@
+本规范定义了AI知识库应用的文档预处理引擎，该系统负责将上传的文档转换为结构化的Markdown格式，然后进行智能分块处理。系统使用MinerU 调用api 进行文档结构化转换，支持PDF、Word、PowerPoint等多种格式，并使用LangChain Go进行段落级别的文本分块。处理后的文档块将存储在document_chunks表中，为后续的向量化和检索提供优化的数据结构。
+
+processing_handler.go定义了接口
+
+用中文编写注释和design
+
