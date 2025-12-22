@@ -20,15 +20,25 @@ export class DocumentProcessingService {
    * @returns 处理状态
    */
   async triggerPreprocessing(documentId: string): Promise<DocumentProcessingStatus> {
-    const response = await apiService.post<DocumentProcessingStatus>(
-      `/documents/${documentId}/preprocess`
+    // 使用新的预处理API端点
+    const response = await apiService.post<{ message: string; document_id: string; status: string }>(
+      `/processing/documents/${documentId}/process`
     );
     
     if (!response.data) {
       throw new Error('Failed to trigger document preprocessing');
     }
     
-    return response.data;
+    // 转换为旧的格式以保持兼容性
+    return {
+      documentId: response.data.document_id,
+      preprocessStatus: 'processing',
+      vectorizationStatus: 'not_started',
+      progress: 0,
+      vectorizationProgress: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
   }
 
   /**
@@ -54,15 +64,48 @@ export class DocumentProcessingService {
    * @returns 处理状态
    */
   async getProcessingStatus(documentId: string): Promise<DocumentProcessingStatus> {
-    const response = await apiService.get<DocumentProcessingStatus>(
-      `/documents/${documentId}/processing-status`
-    );
-    
-    if (!response.data) {
-      throw new Error('Failed to get processing status');
+    // 尝试使用新的预处理API端点
+    try {
+      const response = await apiService.get<{
+        document_id: string;
+        status: string;
+        progress: number;
+        error_message?: string;
+        started_at?: string;
+        completed_at?: string;
+        processed_size: number;
+        total_size: number;
+      }>(`/processing/documents/${documentId}/status`);
+      
+      if (response.data) {
+        // 转换为旧的格式以保持兼容性
+        return {
+          documentId: response.data.document_id,
+          preprocessStatus: response.data.status as any,
+          vectorizationStatus: 'not_started',
+          progress: response.data.progress,
+          vectorizationProgress: 0,
+          error: response.data.error_message,
+          createdAt: response.data.started_at || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          completedAt: response.data.completed_at
+        };
+      }
+    } catch (error) {
+      // 如果新API不可用，返回默认状态
+      console.warn('New processing API not available, returning default status');
     }
     
-    return response.data;
+    // 返回默认状态
+    return {
+      documentId,
+      preprocessStatus: 'not_started',
+      vectorizationStatus: 'not_started',
+      progress: 0,
+      vectorizationProgress: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
   }
 
   /**

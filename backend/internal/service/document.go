@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,10 +24,16 @@ import (
 )
 
 type DocumentService struct {
-	db          *gorm.DB
-	uploadDir   string
-	tempDir     string
-	minioClient *MinIOClient
+	db                   *gorm.DB
+	uploadDir            string
+	tempDir              string
+	minioClient          *MinIOClient
+	preprocessingService PreprocessingService
+}
+
+// PreprocessingService 预处理服务接口（避免循环依赖）
+type PreprocessingService interface {
+	ProcessDocument(ctx context.Context, documentID string) error
 }
 
 func NewDocumentService(db *gorm.DB) *DocumentService {
@@ -44,6 +51,11 @@ func NewDocumentService(db *gorm.DB) *DocumentService {
 // SetMinIOClient sets the MinIO client for S3-compatible storage
 func (s *DocumentService) SetMinIOClient(client *MinIOClient) {
 	s.minioClient = client
+}
+
+// SetPreprocessingService sets the preprocessing service
+func (s *DocumentService) SetPreprocessingService(service PreprocessingService) {
+	s.preprocessingService = service
 }
 
 // IsMinIOAvailable checks if MinIO service is available
@@ -395,6 +407,19 @@ func (s *DocumentService) CompleteUpload(sessionID string) (*models.Document, er
 		os.RemoveAll(session.TempDir)
 	}
 	s.db.Delete(&session)
+
+	// 触发文档处理
+	if s.preprocessingService != nil {
+		documentID := strconv.FormatUint(uint64(doc.ID), 10)
+		go func() {
+			ctx := context.Background()
+			if err := s.preprocessingService.ProcessDocument(ctx, documentID); err != nil {
+				// 记录处理错误，但不影响上传完成的响应
+				// TODO: 添加日志记录
+				fmt.Printf("Failed to process document %s: %v\n", documentID, err)
+			}
+		}()
+	}
 
 	return doc, nil
 }
