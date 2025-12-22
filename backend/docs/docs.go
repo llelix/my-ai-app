@@ -70,6 +70,552 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/processing/documents/batch-process": {
+            "post": {
+                "description": "批量启动多个文档的预处理任务",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "批量处理文档",
+                "parameters": [
+                    {
+                        "description": "批量处理请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.BatchProcessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "批量处理结果",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.BatchProcessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的请求参数",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "批量处理失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/documents/{id}/chunks": {
+            "get": {
+                "description": "获取指定文档预处理后的文本分块",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "获取文档分块",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "文档分块列表",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.DocumentChunksResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的文档ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "文档分块未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "获取分块失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/documents/{id}/process": {
+            "post": {
+                "description": "启动文档预处理任务，将文档转换为可搜索的格式",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "处理文档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "处理任务已启动",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "无效的文档ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "文档未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "处理失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/documents/{id}/process-async": {
+            "post": {
+                "description": "启动异步文档预处理任务，返回任务ID用于跟踪进度",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "异步处理文档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "处理选项",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ProcessDocumentAsyncRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "异步任务已创建",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ProcessDocumentAsyncResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的文档ID或请求参数",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "文档未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "任务创建失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/documents/{id}/reprocess": {
+            "post": {
+                "description": "重新启动文档预处理任务，会覆盖之前的处理结果",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "重新处理文档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "重新处理已启动",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "无效的文档ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "文档未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "重新处理失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/documents/{id}/status": {
+            "get": {
+                "description": "获取指定文档的预处理状态信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "获取文档处理状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "文档ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "处理状态信息",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ProcessingStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的文档ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "处理状态未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "获取状态失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/formats": {
+            "get": {
+                "description": "获取系统支持的文档格式列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "获取支持的文档格式",
+                "responses": {
+                    "200": {
+                        "description": "支持的格式列表",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.SupportedFormatsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/queue/stats": {
+            "get": {
+                "description": "获取预处理队列的统计信息，包括待处理、处理中、已完成的任务数量",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "获取处理队列统计",
+                "responses": {
+                    "200": {
+                        "description": "队列统计信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "获取统计失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/statistics": {
+            "get": {
+                "description": "获取文档预处理的详细统计信息，包括成功率、平均处理时间等",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "获取处理统计信息",
+                "responses": {
+                    "200": {
+                        "description": "处理统计信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "获取统计失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/tasks/{taskId}/cancel": {
+            "post": {
+                "description": "取消指定的异步处理任务",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "取消处理任务",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "任务已取消",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "无效的任务ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "任务未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "取消任务失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/processing/tasks/{taskId}/status": {
+            "get": {
+                "description": "根据任务ID获取异步处理任务的详细状态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "processing"
+                ],
+                "summary": "获取处理任务状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务ID",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "任务状态信息",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.TaskStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的任务ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "任务未找到",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "获取任务状态失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/config": {
+            "get": {
+                "description": "/debug/config",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "debug config",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "检查服务和数据库连接状态",
@@ -334,6 +880,39 @@ const docTemplate = `{
                 }
             }
         },
+        "ai-knowledge-app_internal_preprocessing_core.DocumentChunk": {
+            "type": "object",
+            "properties": {
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "document_id": {
+                    "type": "string"
+                },
+                "end_offset": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "start_offset": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "ai-knowledge-app_pkg_utils.PaginationResponse": {
             "type": "object",
             "properties": {
@@ -361,6 +940,80 @@ const docTemplate = `{
                 "data": {},
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.BatchProcessRequest": {
+            "type": "object",
+            "required": [
+                "document_ids"
+            ],
+            "properties": {
+                "async": {
+                    "description": "是否异步处理",
+                    "type": "boolean",
+                    "example": true
+                },
+                "document_ids": {
+                    "description": "文档ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"123\"",
+                        "\"456\"",
+                        "\"789\"]"
+                    ]
+                },
+                "priority": {
+                    "description": "任务优先级",
+                    "type": "integer",
+                    "maximum": 10,
+                    "minimum": 1,
+                    "example": 1
+                }
+            }
+        },
+        "internal_api.BatchProcessResponse": {
+            "type": "object",
+            "properties": {
+                "error_message": {
+                    "description": "错误信息",
+                    "type": "string",
+                    "example": "Some documents failed to process"
+                },
+                "failed_ids": {
+                    "description": "失败的文档ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"456\"]"
+                    ]
+                },
+                "processed_count": {
+                    "description": "处理的文档数量",
+                    "type": "integer",
+                    "example": 3
+                },
+                "success": {
+                    "description": "是否成功",
+                    "type": "boolean",
+                    "example": true
+                },
+                "task_ids": {
+                    "description": "任务ID列表（异步模式）",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"task1\"",
+                        "\"task2\"",
+                        "\"task3\"]"
+                    ]
                 }
             }
         },
@@ -405,6 +1058,115 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1
+                }
+            }
+        },
+        "internal_api.DocumentChunksResponse": {
+            "type": "object",
+            "properties": {
+                "chunk_count": {
+                    "description": "分块数量",
+                    "type": "integer",
+                    "example": 5
+                },
+                "chunks": {
+                    "description": "分块列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ai-knowledge-app_internal_preprocessing_core.DocumentChunk"
+                    }
+                },
+                "document_id": {
+                    "description": "文档ID",
+                    "type": "string",
+                    "example": "123"
+                }
+            }
+        },
+        "internal_api.ProcessDocumentAsyncRequest": {
+            "type": "object",
+            "properties": {
+                "priority": {
+                    "description": "任务优先级，1-10，数字越大优先级越高",
+                    "type": "integer",
+                    "maximum": 10,
+                    "minimum": 1,
+                    "example": 1
+                }
+            }
+        },
+        "internal_api.ProcessDocumentAsyncResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "document_id": {
+                    "description": "文档ID",
+                    "type": "string",
+                    "example": "123"
+                },
+                "priority": {
+                    "description": "任务优先级",
+                    "type": "integer",
+                    "example": 1
+                },
+                "status": {
+                    "description": "任务状态",
+                    "type": "string",
+                    "example": "pending"
+                },
+                "task_id": {
+                    "description": "任务ID",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "internal_api.ProcessingStatusResponse": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "description": "完成时间",
+                    "type": "string",
+                    "example": "2023-01-01T01:00:00Z"
+                },
+                "document_id": {
+                    "description": "文档ID",
+                    "type": "string",
+                    "example": "123"
+                },
+                "error_message": {
+                    "description": "错误信息",
+                    "type": "string",
+                    "example": ""
+                },
+                "processed_size": {
+                    "description": "已处理大小（字节）",
+                    "type": "integer",
+                    "example": 1024000
+                },
+                "progress": {
+                    "description": "处理进度百分比",
+                    "type": "number",
+                    "example": 75.5
+                },
+                "started_at": {
+                    "description": "开始时间",
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "status": {
+                    "description": "处理状态：pending, processing, completed, failed",
+                    "type": "string",
+                    "example": "processing"
+                },
+                "total_size": {
+                    "description": "总大小（字节）",
+                    "type": "integer",
+                    "example": 2048000
                 }
             }
         },
@@ -469,6 +1231,79 @@ const docTemplate = `{
                 },
                 "tokens": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_api.SupportedFormatsResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "格式数量",
+                    "type": "integer",
+                    "example": 4
+                },
+                "formats": {
+                    "description": "支持的格式列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"pdf\"",
+                        "\"docx\"",
+                        "\"txt\"",
+                        "\"md\"]"
+                    ]
+                }
+            }
+        },
+        "internal_api.TaskStatusResponse": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "description": "完成时间",
+                    "type": "string",
+                    "example": "2023-01-01T01:00:00Z"
+                },
+                "created_at": {
+                    "description": "创建时间",
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "document_id": {
+                    "description": "文档ID",
+                    "type": "string",
+                    "example": "123"
+                },
+                "error_message": {
+                    "description": "错误信息",
+                    "type": "string",
+                    "example": ""
+                },
+                "priority": {
+                    "description": "任务优先级",
+                    "type": "integer",
+                    "example": 1
+                },
+                "progress": {
+                    "description": "处理进度百分比",
+                    "type": "number",
+                    "example": 75.5
+                },
+                "started_at": {
+                    "description": "开始时间",
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "status": {
+                    "description": "任务状态",
+                    "type": "string",
+                    "example": "processing"
+                },
+                "task_id": {
+                    "description": "任务ID",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 }
             }
         },

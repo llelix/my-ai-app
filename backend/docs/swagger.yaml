@@ -19,6 +19,28 @@ definitions:
       view_count:
         type: integer
     type: object
+  ai-knowledge-app_internal_preprocessing_core.DocumentChunk:
+    properties:
+      chunk_index:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      document_id:
+        type: string
+      end_offset:
+        type: integer
+      id:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      start_offset:
+        type: integer
+      updated_at:
+        type: string
+    type: object
   ai-knowledge-app_pkg_utils.PaginationResponse:
     properties:
       items: {}
@@ -38,6 +60,61 @@ definitions:
       data: {}
       message:
         type: string
+    type: object
+  internal_api.BatchProcessRequest:
+    properties:
+      async:
+        description: 是否异步处理
+        example: true
+        type: boolean
+      document_ids:
+        description: 文档ID列表
+        example:
+        - '["123"'
+        - '"456"'
+        - '"789"]'
+        items:
+          type: string
+        type: array
+      priority:
+        description: 任务优先级
+        example: 1
+        maximum: 10
+        minimum: 1
+        type: integer
+    required:
+    - document_ids
+    type: object
+  internal_api.BatchProcessResponse:
+    properties:
+      error_message:
+        description: 错误信息
+        example: Some documents failed to process
+        type: string
+      failed_ids:
+        description: 失败的文档ID列表
+        example:
+        - '["456"]'
+        items:
+          type: string
+        type: array
+      processed_count:
+        description: 处理的文档数量
+        example: 3
+        type: integer
+      success:
+        description: 是否成功
+        example: true
+        type: boolean
+      task_ids:
+        description: 任务ID列表（异步模式）
+        example:
+        - '["task1"'
+        - '"task2"'
+        - '"task3"]'
+        items:
+          type: string
+        type: array
     type: object
   internal_api.CreateKnowledgeRequest:
     properties:
@@ -68,6 +145,89 @@ definitions:
     required:
     - content
     - title
+    type: object
+  internal_api.DocumentChunksResponse:
+    properties:
+      chunk_count:
+        description: 分块数量
+        example: 5
+        type: integer
+      chunks:
+        description: 分块列表
+        items:
+          $ref: '#/definitions/ai-knowledge-app_internal_preprocessing_core.DocumentChunk'
+        type: array
+      document_id:
+        description: 文档ID
+        example: "123"
+        type: string
+    type: object
+  internal_api.ProcessDocumentAsyncRequest:
+    properties:
+      priority:
+        description: 任务优先级，1-10，数字越大优先级越高
+        example: 1
+        maximum: 10
+        minimum: 1
+        type: integer
+    type: object
+  internal_api.ProcessDocumentAsyncResponse:
+    properties:
+      created_at:
+        description: 创建时间
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      document_id:
+        description: 文档ID
+        example: "123"
+        type: string
+      priority:
+        description: 任务优先级
+        example: 1
+        type: integer
+      status:
+        description: 任务状态
+        example: pending
+        type: string
+      task_id:
+        description: 任务ID
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  internal_api.ProcessingStatusResponse:
+    properties:
+      completed_at:
+        description: 完成时间
+        example: "2023-01-01T01:00:00Z"
+        type: string
+      document_id:
+        description: 文档ID
+        example: "123"
+        type: string
+      error_message:
+        description: 错误信息
+        example: ""
+        type: string
+      processed_size:
+        description: 已处理大小（字节）
+        example: 1024000
+        type: integer
+      progress:
+        description: 处理进度百分比
+        example: 75.5
+        type: number
+      started_at:
+        description: 开始时间
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      status:
+        description: 处理状态：pending, processing, completed, failed
+        example: processing
+        type: string
+      total_size:
+        description: 总大小（字节）
+        example: 2048000
+        type: integer
     type: object
   internal_api.QueryRequest:
     properties:
@@ -111,6 +271,62 @@ definitions:
         type: string
       tokens:
         type: integer
+    type: object
+  internal_api.SupportedFormatsResponse:
+    properties:
+      count:
+        description: 格式数量
+        example: 4
+        type: integer
+      formats:
+        description: 支持的格式列表
+        example:
+        - '["pdf"'
+        - '"docx"'
+        - '"txt"'
+        - '"md"]'
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.TaskStatusResponse:
+    properties:
+      completed_at:
+        description: 完成时间
+        example: "2023-01-01T01:00:00Z"
+        type: string
+      created_at:
+        description: 创建时间
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      document_id:
+        description: 文档ID
+        example: "123"
+        type: string
+      error_message:
+        description: 错误信息
+        example: ""
+        type: string
+      priority:
+        description: 任务优先级
+        example: 1
+        type: integer
+      progress:
+        description: 处理进度百分比
+        example: 75.5
+        type: number
+      started_at:
+        description: 开始时间
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      status:
+        description: 任务状态
+        example: processing
+        type: string
+      task_id:
+        description: 任务ID
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
     type: object
   internal_api.UpdateKnowledgeRequest:
     properties:
@@ -183,6 +399,376 @@ paths:
       summary: AI智能查询
       tags:
       - ai
+  /api/v1/processing/documents/{id}/chunks:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定文档预处理后的文本分块
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 文档分块列表
+          schema:
+            $ref: '#/definitions/internal_api.DocumentChunksResponse'
+        "400":
+          description: 无效的文档ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 文档分块未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 获取分块失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取文档分块
+      tags:
+      - processing
+  /api/v1/processing/documents/{id}/process:
+    post:
+      consumes:
+      - application/json
+      description: 启动文档预处理任务，将文档转换为可搜索的格式
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 处理任务已启动
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的文档ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 文档未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 处理失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 处理文档
+      tags:
+      - processing
+  /api/v1/processing/documents/{id}/process-async:
+    post:
+      consumes:
+      - application/json
+      description: 启动异步文档预处理任务，返回任务ID用于跟踪进度
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 处理选项
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.ProcessDocumentAsyncRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 异步任务已创建
+          schema:
+            $ref: '#/definitions/internal_api.ProcessDocumentAsyncResponse'
+        "400":
+          description: 无效的文档ID或请求参数
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 文档未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 任务创建失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 异步处理文档
+      tags:
+      - processing
+  /api/v1/processing/documents/{id}/reprocess:
+    post:
+      consumes:
+      - application/json
+      description: 重新启动文档预处理任务，会覆盖之前的处理结果
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重新处理已启动
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的文档ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 文档未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 重新处理失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 重新处理文档
+      tags:
+      - processing
+  /api/v1/processing/documents/{id}/status:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定文档的预处理状态信息
+      parameters:
+      - description: 文档ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 处理状态信息
+          schema:
+            $ref: '#/definitions/internal_api.ProcessingStatusResponse'
+        "400":
+          description: 无效的文档ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 处理状态未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 获取状态失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取文档处理状态
+      tags:
+      - processing
+  /api/v1/processing/documents/batch-process:
+    post:
+      consumes:
+      - application/json
+      description: 批量启动多个文档的预处理任务
+      parameters:
+      - description: 批量处理请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.BatchProcessRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 批量处理结果
+          schema:
+            $ref: '#/definitions/internal_api.BatchProcessResponse'
+        "400":
+          description: 无效的请求参数
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 批量处理失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 批量处理文档
+      tags:
+      - processing
+  /api/v1/processing/formats:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统支持的文档格式列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 支持的格式列表
+          schema:
+            $ref: '#/definitions/internal_api.SupportedFormatsResponse'
+      summary: 获取支持的文档格式
+      tags:
+      - processing
+  /api/v1/processing/queue/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取预处理队列的统计信息，包括待处理、处理中、已完成的任务数量
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 队列统计信息
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 获取统计失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取处理队列统计
+      tags:
+      - processing
+  /api/v1/processing/statistics:
+    get:
+      consumes:
+      - application/json
+      description: 获取文档预处理的详细统计信息，包括成功率、平均处理时间等
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 处理统计信息
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 获取统计失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取处理统计信息
+      tags:
+      - processing
+  /api/v1/processing/tasks/{taskId}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: 取消指定的异步处理任务
+      parameters:
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 任务已取消
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 取消任务失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 取消处理任务
+      tags:
+      - processing
+  /api/v1/processing/tasks/{taskId}/status:
+    get:
+      consumes:
+      - application/json
+      description: 根据任务ID获取异步处理任务的详细状态
+      parameters:
+      - description: 任务ID
+        in: path
+        name: taskId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 任务状态信息
+          schema:
+            $ref: '#/definitions/internal_api.TaskStatusResponse'
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务未找到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 获取任务状态失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取处理任务状态
+      tags:
+      - processing
+  /debug/config:
+    get:
+      consumes:
+      - application/json
+      description: /debug/config
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: debug config
+      tags:
+      - system
   /health:
     get:
       consumes:

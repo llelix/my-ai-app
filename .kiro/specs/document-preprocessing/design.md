@@ -52,38 +52,6 @@
 
 ## 组件和接口
 
-### 1. HTTP API接口
-
-```go
-// DocumentPreprocessingHandler 处理文档预处理的HTTP请求
-type DocumentPreprocessingHandler struct {
-    service *DocumentPreprocessingService
-}
-
-// ProcessDocument 处理单个文档
-// POST /api/v1/documents/{id}/preprocess
-func (h *DocumentPreprocessingHandler) ProcessDocument(c *gin.Context)
-
-// ProcessVectorization 处理单个文档的向量化（预留）
-// POST /api/v1/documents/{id}/vectorize
-func (h *DocumentPreprocessingHandler) ProcessVectorization(c *gin.Context)
-
-// GetProcessingStatus 获取处理状态
-// GET /api/v1/documents/{id}/processing-status
-func (h *DocumentPreprocessingHandler) GetProcessingStatus(c *gin.Context)
-
-// GetVectorizationStatus 获取向量化状态（预留）
-// GET /api/v1/documents/{id}/vectorization-status
-func (h *DocumentPreprocessingHandler) GetVectorizationStatus(c *gin.Context)
-
-// BatchProcessDocuments 批量处理文档
-// POST /api/v1/documents/batch-preprocess
-func (h *DocumentPreprocessingHandler) BatchProcessDocuments(c *gin.Context)
-
-// GetBatchProcessingStatus 获取批量处理状态
-// GET /api/v1/documents/batch-processing-status
-func (h *DocumentPreprocessingHandler) GetBatchProcessingStatus(c *gin.Context)
-```
 
 ### 2. 服务层接口
 

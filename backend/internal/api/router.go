@@ -7,6 +7,7 @@ import (
 	"ai-knowledge-app/internal/ai"
 	"ai-knowledge-app/internal/config"
 	"ai-knowledge-app/internal/middleware"
+	"ai-knowledge-app/internal/preprocessing"
 	"ai-knowledge-app/internal/service"
 	"ai-knowledge-app/pkg/database"
 	"ai-knowledge-app/pkg/utils"
@@ -18,12 +19,13 @@ import (
 
 // Router API路由器
 type Router struct {
-	config           *config.Config
-	knowledgeHandler *KnowledgeHandler
-	aiHandler        *AIHandler
-	tagHandler       *TagHandler
-	documentHandler  *DocumentHandler
-	vectorService    service.VectorService
+	config            *config.Config
+	knowledgeHandler  *KnowledgeHandler
+	aiHandler         *AIHandler
+	tagHandler        *TagHandler
+	documentHandler   *DocumentHandler
+	processingHandler *ProcessingHandler
+	vectorService     service.VectorService
 }
 
 // NewRouter 创建新的路由器
@@ -38,17 +40,21 @@ func NewRouter(config *config.Config, vectorService service.VectorService, minio
 		documentService.SetMinIOClient(minioClient)
 	}
 
+	// 创建预处理服务
+	preprocessingService := preprocessing.NewService(database.GetDatabase())
+
 	// 创建处理器
 	aiHandler := NewAIHandler()
 	aiHandler.SetAIService(aiService)
 
 	return &Router{
-		config:           config,
-		knowledgeHandler: NewKnowledgeHandler(vectorService),
-		aiHandler:        aiHandler,
-		tagHandler:       NewTagHandler(),
-		documentHandler:  NewDocumentHandler(documentService),
-		vectorService:    vectorService,
+		config:            config,
+		knowledgeHandler:  NewKnowledgeHandler(vectorService),
+		aiHandler:         aiHandler,
+		tagHandler:        NewTagHandler(),
+		documentHandler:   NewDocumentHandler(documentService),
+		processingHandler: NewProcessingHandler(preprocessingService),
+		vectorService:     vectorService,
 	}
 }
 
@@ -132,6 +138,33 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			documents.DELETE("/:id", r.documentHandler.Delete)
 			documents.POST("/:id/preprocess", r.documentHandler.Preprocess)
 		}
+
+		// 文档预处理路由
+		processing := v1.Group("/processing")
+		{
+			// 文档处理相关路由
+			processingDocs := processing.Group("/documents")
+			{
+				processingDocs.POST("/:id/process", r.processingHandler.ProcessDocument)
+				processingDocs.POST("/:id/process-async", r.processingHandler.ProcessDocumentAsync)
+				processingDocs.GET("/:id/status", r.processingHandler.GetProcessingStatus)
+				processingDocs.GET("/:id/chunks", r.processingHandler.GetDocumentChunks)
+				processingDocs.POST("/:id/reprocess", r.processingHandler.ReprocessDocument)
+				processingDocs.POST("/batch-process", r.processingHandler.BatchProcessDocuments)
+			}
+
+			// 任务管理相关路由
+			tasks := processing.Group("/tasks")
+			{
+				tasks.GET("/:taskId/status", r.processingHandler.GetTaskStatus)
+				tasks.POST("/:taskId/cancel", r.processingHandler.CancelTask)
+			}
+
+			// 队列和统计相关路由
+			processing.GET("/queue/stats", r.processingHandler.GetQueueStats)
+			processing.GET("/statistics", r.processingHandler.GetProcessingStatistics)
+			processing.GET("/formats", r.processingHandler.GetSupportedFormats)
+		}
 	}
 
 	// 404处理
@@ -179,7 +212,14 @@ func (r *Router) healthCheck(c *gin.Context) {
 	})
 }
 
-// debugConfig 调试配置信息
+// @Summary debug config
+// @Description /debug/config
+// @Tags system
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {object} map[string]interface{}
+// @Router /debug/config [get]
 func (r *Router) debugConfig(c *gin.Context) {
 	// 只返回安全的配置信息（不包含敏感信息）
 	config := gin.H{
